@@ -2,17 +2,81 @@
 
 A KDE Plasma 6 widget (`it.df.dtop`) that does what the [`dtop`](https://github.com/amir20/dtop) terminal app does: monitor Docker containers across hosts, sort and filter them, read logs, and start/stop/restart/remove them.
 
-It drives the `docker` CLI (Docker 29), so anything `docker -H …` can reach works.
+It drives the `docker` CLI, so anything `docker -H …` can reach works.
 
-## Install / upgrade
+> **Vibecoded.** This widget, its tests and this README were written almost entirely by an AI coding assistant (Claude Code), directed and reviewed by a human.
+> It is tested on one machine only (see Requirements). Read the code before trusting it with production hosts; issues and fixes are welcome.
+
+## Requirements
+
+| Tool | Needed for | Tested with |
+|---|---|---|
+| KDE Plasma 6 (`plasmashell`, `kpackagetool6`) | running and installing the widget | Plasma 6.8.2, kpackagetool6 2.0 (KDE Neon) |
+| Docker CLI (`docker`) | everything: the widget runs `docker ps`, `stats`, `logs`, … | Docker 29.9.3 |
+| Permission to use Docker without `sudo` (user in the `docker` group, or rootless Docker) | local hosts; the widget cannot ask for a password | |
+| Docker Compose v2 plugin (`docker compose`) | only the Group view's project actions and project logs | Compose v5.7.0 |
+| `ssh` client with key-based login | only `ssh://` hosts | OpenSSH |
+| A terminal, `konsole` by default | only "Open shell" (configurable in Settings) | |
+| Node.js 24 | only running the tests | Node 24.17 |
+
+The Docker daemon itself can be on another machine (`ssh://`, `tcp://`, `tls://` hosts); the CLI must be installed locally.
+
+What happens when something is missing:
+
+- **No `docker` on `PATH`:** each host shows "docker CLI not found: install Docker …" instead of containers.
+  Install Docker from https://docs.docker.com/engine/install/, then restart Plasma (see below) so `plasmashell` picks up the new `PATH`.
+- **No permission on the Docker socket:** the host shows Docker's own "permission denied … docker.sock" error.
+  Add yourself to the group (`sudo usermod -aG docker $USER`), then log out and back in.
+- **No Compose plugin:** the widget works; only Group-view project actions fail, with "Docker Compose plugin not found …".
+  Install it from https://docs.docker.com/compose/install/linux/ (e.g. the `docker-compose-plugin` package).
+- **No `ssh`:** `ssh://` hosts show the error and other hosts keep working.
+
+Check your setup:
 
 ```bash
-kpackagetool6 -t Plasma/Applet -i it.df.dtop   # first time
-kpackagetool6 -t Plasma/Applet -u it.df.dtop   # after changes
+docker version            # client and server versions; fails if the daemon is unreachable
+docker compose version    # only for the Group view's project actions
+groups | grep -w docker   # local hosts without sudo
 ```
 
-Then add "dtop" to a panel or the desktop.
-To try it in a window: `plasmawindowed it.df.dtop`.
+## Install
+
+### From GitHub (zip, no git needed)
+
+```bash
+cd ~/Downloads
+curl -L -o dtop-widget.zip https://github.com/davidefabbri11/dtop-widget/archive/refs/heads/main.zip
+unzip dtop-widget.zip
+kpackagetool6 -t Plasma/Applet -i dtop-widget-main/it.df.dtop
+```
+
+### From a git clone
+
+```bash
+git clone https://github.com/davidefabbri11/dtop-widget.git
+cd dtop-widget
+kpackagetool6 -t Plasma/Applet -i it.df.dtop
+```
+
+The widget is installed in `~/.local/share/plasma/plasmoids/it.df.dtop/`; no root needed.
+
+### Add it to Plasma
+
+Right-click a panel or the desktop, choose **Add or Manage Widgets…**, search for **dtop**, and drag it onto the panel or the desktop.
+To try it in a window first: `plasmawindowed it.df.dtop`.
+
+### Upgrade
+
+Download or `git pull` the new version, then:
+
+```bash
+kpackagetool6 -t Plasma/Applet -u it.df.dtop
+systemctl --user restart plasma-plasmashell   # Plasma loads widget code only at startup
+```
+
+### Uninstall
+
+Remove it from your panels, then run `kpackagetool6 -t Plasma/Applet -r it.df.dtop`.
 
 ## Tests
 
