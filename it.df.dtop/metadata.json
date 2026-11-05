@@ -1,0 +1,18 @@
+{
+    "KPlugin": {
+        "Id": "it.df.dtop",
+        "Name": "dtop",
+        "Description": "Docker container monitor: status, CPU, memory, network, disk I/O, logs and actions across multiple hosts",
+        "Icon": "yast-docker",
+        "Authors": [
+            { "Name": "Davide Fabbri", "Email": "davide.fabbri11@gmail.com" }
+        ],
+        "Category": "System Information",
+        "License": "MIT",
+        "Version": "0.1.0",
+        "Website": ""
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

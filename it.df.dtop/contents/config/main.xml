@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0">
+  <kcfgfile name=""/>
+  <group name="General">
+    <entry name="hosts" type="String">
+      <default>local</default>
+    </entry>
+    <entry name="refreshSeconds" type="Int">
+      <default>3</default>
+    </entry>
+    <entry name="showAll" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="sortKey" type="String">
+      <default>name</default>
+    </entry>
+    <entry name="sortDesc" type="Bool">
+      <default>false</default>
+    </entry>
+    <entry name="columns" type="StringList">
+      <default>id,status,name,host,compose,cpu,memory,net_tx,net_rx,uptime</default>
+    </entry>
+    <entry name="statsHeader" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="logTail" type="Int">
+      <default>1000</default>
+    </entry>
+    <entry name="terminalCommand" type="String">
+      <default>konsole -e</default>
+    </entry>
+  </group>
+</kcfg>
