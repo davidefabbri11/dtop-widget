@@ -125,3 +125,11 @@ test("keepNewest keeps the newest lines across containers with skewed log rates"
     assert.deepEqual(kept.map((l) => l.text), ["busy-1 | b11", "busy-1 | b12"]);
     assert.equal(all.length, 4);
 });
+
+test("formatLogLine keeps the compose container prefix when rendering JSON", () => {
+    const line = L.parseComposeLogLines('shop-api-1  | 2026-11-05T06:00:01Z {"level":"info"}\n')[0];
+
+    const html = L.formatLogLine(line, () => "07:00:01", true);
+
+    assert.match(html, /shop-api-1 \| \{<span style="color:#5fafd7">&quot;level&quot;<\/span>/);
+});

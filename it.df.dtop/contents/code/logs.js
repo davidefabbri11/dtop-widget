@@ -64,7 +64,10 @@ function asRichText(s) {
 
 function formatLogLine(line, localTime, jsonMode) {
     var time = line.ts ? span(COLOR.time, escapeHtml(localTime(line.tsMs))) + " " : "";
-    var body = jsonMode && line.json !== null ? renderJson(line.json, false) : escapeHtml(line.text);
+    // Compose lines keep their container prefix in front of rendered JSON.
+    var body = jsonMode && line.json !== null
+        ? (line.prefix ? escapeHtml(line.prefix) + " | " : "") + renderJson(line.json, false)
+        : escapeHtml(line.text);
     // pre-wrap keeps indentation (stack traces, aligned output) that rich text would collapse.
     return time + "<span style=\"white-space:pre-wrap\">" + body + "</span>";
 }
@@ -103,7 +106,10 @@ function parseComposeLogLines(stdout) {
         var m = /^(\S+)\s+\| ?(.*)$/.exec(raw);
         var parsed = parseLogLines(m ? m[2] : raw)[0];
         if (!parsed) return;
-        if (m) parsed.text = m[1] + " | " + parsed.text;
+        if (m) {
+            parsed.prefix = m[1];
+            parsed.text = m[1] + " | " + parsed.text;
+        }
         lines.push(parsed);
     });
     return lines
