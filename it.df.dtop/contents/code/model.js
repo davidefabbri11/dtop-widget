@@ -114,8 +114,63 @@ function actionTargets(row, selection, visibleRows) {
     return visibleRows.filter(function (r) { return selection[r.key]; });
 }
 
+// ----- grouping by compose project -----
+
+function groupKey(host, project) {
+    return host + "/" + project;
+}
+
+// Flat list for the table: a { type: "group" } header per (host, compose project), each followed
+// by its visible member rows ({ type: "row" }) unless collapsed. Header totals cover ALL of the
+// project's containers (project actions act on all of them), not just the visible ones.
+// A project header stays even when all its rows are hidden (e.g. Show all off), so it can be started;
+// with a search, only groups with visible rows or a matching project name remain.
+function groupRows(visibleRows, allRows, opts) {
+    var q = (opts.search || "").trim().toLowerCase();
+    var groups = {};
+    allRows.forEach(function (r) {
+        var key = groupKey(r.host, r.composeProject);
+        var g = groups[key] || (groups[key] = {
+            type: "group", key: key, host: r.host, project: r.composeProject, rows: [], members: [],
+            running: 0, paused: 0, total: 0, cpu: 0, memUsed: 0, collapsed: !!opts.collapsed[key]
+        });
+        g.rows.push(r);
+        g.total++;
+        if (r.state === "running") g.running++;
+        if (r.state === "paused") g.paused++;
+        g.cpu += r.cpu || 0;
+        g.memUsed += r.memUsed || 0;
+    });
+    visibleRows.forEach(function (r) {
+        var g = groups[groupKey(r.host, r.composeProject)];
+        if (g) g.members.push(r);
+    });
+    var ordered = Object.keys(groups).map(function (k) { return groups[k]; }).filter(function (g) {
+        if (g.members.length > 0) return true;
+        if (g.project === "") return false;
+        return !q || g.project.toLowerCase().indexOf(q) >= 0;
+    }).sort(function (a, b) {
+        return cmp(a.host, b.host) || cmp(a.project === "" ? 1 : 0, b.project === "" ? 1 : 0) || cmp(a.project, b.project);
+    });
+    var items = [];
+    ordered.forEach(function (g) {
+        var members = g.members;
+        delete g.members;
+        items.push(g);
+        if (!g.collapsed) members.forEach(function (r) { items.push({ type: "row", row: r }); });
+    });
+    return items;
+}
+
+function displayedRows(items) {
+    return items.filter(function (i) { return i.type === "row"; }).map(function (i) { return i.row; });
+}
+
 if (typeof module !== "undefined" && module.exports) {
     module.exports = {
+        groupKey: groupKey,
+        groupRows: groupRows,
+        displayedRows: displayedRows,
         actionTargets: actionTargets,
         mergeSnapshot: mergeSnapshot,
         statusRank: statusRank,

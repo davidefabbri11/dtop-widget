@@ -78,6 +78,12 @@ function parsePs(stdout, hostName) {
             shortId: id.substring(0, 12),
             name: firstLabel(labels, ["dev.dozzle.name", "coolify.serviceName"], o.Names || ""),
             compose: firstLabel(labels, ["dev.dozzle.group", "coolify.projectName", "com.docker.compose.project"], ""),
+            // Raw compose labels: grouping and `docker compose` actions need the real project, not the display group.
+            composeProject: labels["com.docker.compose.project"] || "",
+            composeWorkingDir: labels["com.docker.compose.project.working_dir"] || "",
+            composeConfigFiles: (labels["com.docker.compose.project.config_files"] || "").split(",").filter(function (f) { return f.length > 0; }),
+            composeEnvFile: labels["com.docker.compose.project.environment_file"] || "",
+            composeService: labels["com.docker.compose.service"] || "",
             image: o.Image || "",
             ports: o.Ports || "",
             state: o.State || "",

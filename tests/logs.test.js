@@ -100,3 +100,28 @@ test("asRichText escapes untrusted text inside an explicit rich-text wrapper", (
 
     assert.equal(html, "<span style=\"white-space:pre-wrap\">image &lt;none&gt;\n&amp; more</span>");
 });
+
+test("parseComposeLogLines strips the padded prefix, keeps the name in text and sorts by time", () => {
+    const out = "b-1   | 2026-11-05T06:00:02.000000001Z two\na-1 | 2026-11-05T06:00:01Z one\n";
+
+    const lines = L.parseComposeLogLines(out);
+
+    assert.deepEqual(lines.map((l) => l.text), ["a-1 | one", "b-1 | two"]);
+    assert.equal(lines[0].ts, "2026-11-05T06:00:01Z");
+});
+
+test("keepNewest keeps the newest lines across containers with skewed log rates", () => {
+    const out = [
+        "quiet-1 | 2026-11-01T00:00:00Z old",
+        "busy-1 | 2026-11-05T06:00:10Z b10",
+        "busy-1 | 2026-11-05T06:00:11Z b11",
+        "busy-1 | 2026-11-05T06:00:12Z b12",
+    ].join("\n");
+    const lines = L.parseComposeLogLines(out);
+
+    const kept = L.keepNewest(lines, 2);
+    const all = L.keepNewest(lines, 0);
+
+    assert.deepEqual(kept.map((l) => l.text), ["busy-1 | b11", "busy-1 | b12"]);
+    assert.equal(all.length, 4);
+});

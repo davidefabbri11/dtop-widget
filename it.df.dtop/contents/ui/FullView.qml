@@ -44,6 +44,14 @@ PlasmaExtras.Representation {
                 PlasmaComponents.ToolTip.text: "Show stopped containers too"
             }
             PlasmaComponents.ToolButton {
+                icon.name: "view-group"
+                text: "Group"
+                checkable: true
+                checked: Plasmoid.configuration.groupByCompose
+                onToggled: Plasmoid.configuration.groupByCompose = checked
+                PlasmaComponents.ToolTip.text: "Group containers by Compose project"
+            }
+            PlasmaComponents.ToolButton {
                 id: columnsButton
                 icon.name: "view-list-details"
                 text: "Columns"
@@ -116,6 +124,10 @@ PlasmaExtras.Representation {
                     actionMenu.popup(item, x, y);
                 }
                 onLogsRequested: function (row) { full.showLogs(row); }
+                onProjectMenuRequested: function (group, item, x, y) {
+                    projectMenu.group = group;
+                    projectMenu.popup(item, x, y);
+                }
             }
 
             DetailsView {
@@ -135,6 +147,41 @@ PlasmaExtras.Representation {
         onLogsRequested: function (row) { full.showLogs(row); }
         onDetailsRequested: function (row) { detailsView.row = row; pages.currentIndex = 1; detailsView.forceActiveFocus(); }
         onRemoveRequested: function (targets) { removeDialog.targets = targets; removeDialog.open(); }
+    }
+
+    ProjectMenu {
+        id: projectMenu
+        onLogsRequested: function (group) { full.showLogs({ project: group.project, host: group.host, name: group.project }); }
+        onDownRequested: function (group) {
+            downDialog.group = group;
+            volumesBox.checked = false;
+            downDialog.open();
+        }
+    }
+
+    Kirigami.Dialog {
+        id: downDialog
+        property var group: null
+        readonly property var host: group ? root.hostOf({ host: group.host }) : null
+        title: group ? "Down “" + group.project + "”?" : ""
+        standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
+        padding: Kirigami.Units.largeSpacing
+        onAccepted: root.composeAct(group, volumesBox.checked ? "downVolumes" : "down")
+
+        ColumnLayout {
+            PlasmaComponents.Label {
+                text: downDialog.group ? "Stops and removes " + downDialog.group.total + " containers and the project network." : ""
+            }
+            PlasmaComponents.Label {
+                visible: !!downDialog.host && downDialog.host.filters.length > 0
+                text: "This host has filters; containers hidden by them are affected too."
+                color: Kirigami.Theme.neutralTextColor
+            }
+            PlasmaComponents.CheckBox {
+                id: volumesBox
+                text: "Also remove volumes (-v)"
+            }
+        }
     }
 
     Kirigami.PromptDialog {

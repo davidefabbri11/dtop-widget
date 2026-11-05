@@ -125,3 +125,155 @@ test("pollCommand for an ssh host is valid shell (env prefix survives timeout)",
 
     assert.match(out, /^docker -H ssh:\/\/me@prod ps/);
 });
+
+function crow(workingDir, file, createdMs) {
+    return {
+        composeWorkingDir: workingDir, composeConfigFiles: file ? [file] : [], composeEnvFile: "",
+        createdMs: createdMs || 0,
+    };
+}
+
+function repeat(n, make) {
+    return Array.from({ length: n }, make);
+}
+
+const FS = { workingDir: "/w", configFiles: ["/w/a.yml"], envFile: "" };
+
+test("pickFileSet chooses the set used by most containers", () => {
+    const rows = [].concat(
+        repeat(14, () => crow("/w/next", "/w/next/p.yml")),
+        repeat(2, () => crow("/w/2026.2", "/w/2026.2/p.yml")),
+        [crow("/w/pg", "/w/pg/pg18.yml")]);
+
+    const fileSet = C.pickFileSet(rows);
+
+    assert.deepEqual(fileSet, { workingDir: "/w/next", configFiles: ["/w/next/p.yml"], envFile: "", others: 3 });
+});
+
+test("pickFileSet breaks ties with the newest container and skips label-less rows", () => {
+    const rows = [crow("/a", "/a/x.yml", 1), crow("/b", "/b/x.yml", 2), crow("", "", 3)];
+
+    const fileSet = C.pickFileSet(rows);
+
+    assert.deepEqual(fileSet, { workingDir: "/b", configFiles: ["/b/x.yml"], envFile: "", others: 1 });
+});
+
+test("pickFileSet returns null when no row has file labels", () => {
+    const rows = [crow("", ""), crow("/w", "")];
+
+    const fileSet = C.pickFileSet(rows);
+
+    assert.equal(fileSet, null);
+});
+
+test("fileSetLabel keeps the last two path segments", () => {
+    const fileSet = { configFiles: ["/a/b/next/docker-compose_platflow.yml"] };
+
+    const label = C.fileSetLabel(fileSet);
+
+    assert.equal(label, "next/docker-compose_platflow.yml");
+});
+
+test("composeCommand builds file-less actions on the docker prefix", () => {
+    const local = host("local");
+
+    const cmds = [
+        C.composeCommand(local, "start", "stada", null),
+        C.composeCommand(local, "downVolumes", "stada", null),
+        C.composeCommand(host("ssh://me@prod"), "stop", "stada", null),
+    ];
+
+    assert.deepEqual(cmds, [
+        "docker compose -p 'stada' start",
+        "docker compose -p 'stada' down -v",
+        "env SSH_ASKPASS_REQUIRE=never docker -H 'ssh://me@prod' compose -p 'stada' stop",
+    ]);
+});
+
+test("composeCommand passes files, project dir and env file for up", () => {
+    const fileSet = { workingDir: "/w/my dir", configFiles: ["/w/my dir/a.yml", "/w/b.yml"], envFile: "/w/.env" };
+
+    const cmd = C.composeCommand(host("local"), "up", "stada", fileSet);
+
+    assert.equal(cmd, "docker compose -p 'stada' -f '/w/my dir/a.yml' -f '/w/b.yml' --project-directory '/w/my dir' --env-file '/w/.env' up -d");
+});
+
+test("composeCommand runs file-based actions over ssh with port and double quoting", () => {
+    const sshHost = host("ssh://me@prod:2222");
+
+    const cmd = C.composeCommand(sshHost, "pull", "it's", FS);
+
+    assert.equal(cmd, "env SSH_ASKPASS_REQUIRE=never ssh -o BatchMode=yes -p 2222 'me@prod' "
+        + C.shQuote("cd '/w' && docker compose -p 'it'\\''s' -f '/w/a.yml' --project-directory '/w' pull"));
+});
+
+test("composeCommand over ssh without user or port", () => {
+    const sshHost = host("ssh://prod");
+
+    const cmd = C.composeCommand(sshHost, "build", "stada", FS);
+
+    assert.ok(cmd.startsWith("env SSH_ASKPASS_REQUIRE=never ssh -o BatchMode=yes 'prod' "), cmd);
+});
+
+test("composeUnavailable explains why file-based actions cannot run", () => {
+    const tcp = host("tcp://h:2375");
+
+    const reasons = [
+        C.composeUnavailable(tcp, "up", FS),
+        C.composeUnavailable(host("local"), "up", null),
+        C.composeUnavailable(tcp, "stop", null),
+    ];
+
+    assert.deepEqual(reasons, ["needs SSH access to the host", "no compose file labels on its containers", ""]);
+});
+
+test("composeCommand rejects unknown and unavailable actions", () => {
+    const local = host("local");
+
+    const unknown = () => C.composeCommand(local, "rm", "stada", null);
+    const unavailable = () => C.composeCommand(host("tcp://h:2375"), "up", "stada", FS);
+
+    assert.throws(unknown, /unknown compose action: rm/);
+    assert.throws(unavailable, /needs SSH access/);
+});
+
+test("composeLogsCommand mirrors logsCommand options", () => {
+    const local = host("local");
+
+    const tail = C.composeLogsCommand(local, "stada", { tail: 500 });
+    const until = C.composeLogsCommand(local, "stada", { until: "2026-11-05T06:00:00Z", tail: 500 });
+
+    assert.equal(tail, "docker compose -p 'stada' logs --no-color --timestamps --tail 500 2>&1");
+    // --tail is per container in compose, and a shell `tail` over interleaved streams is arbitrary:
+    // older pages fetch everything before `until`; the newest N overall are kept in JS (keepNewest).
+    assert.equal(until, "docker compose -p 'stada' logs --no-color --timestamps --until '2026-11-05T06:00:00Z' 2>&1");
+});
+
+test("pollError explains a missing docker CLI (exit 127)", () => {
+    const stderr = "sh: 1: docker: not found\n";
+
+    const msg = C.pollError(stderr, 127, 15);
+
+    assert.match(msg, /^docker CLI not found/);
+    assert.match(msg, /docs\.docker\.com\/engine\/install/);
+});
+
+test("composeError explains a missing Compose plugin", () => {
+    const shorthand = "unknown shorthand flag: 'p' in -p\n\nUsage:  docker [OPTIONS] COMMAND [ARG...]";
+    const unknown = "docker: unknown command: docker compose\n";
+    const legacy = "docker: 'compose' is not a docker command.\n";
+
+    const msgs = [C.composeError("", shorthand, 125), C.composeError("", unknown, 1), C.composeError("", legacy, 1)];
+
+    msgs.forEach((m) => assert.match(m, /^Docker Compose plugin not found/));
+});
+
+test("composeError explains a missing docker or ssh and passes other errors through", () => {
+    const missing = C.composeError("", "env: 'ssh': No such file or directory", 127);
+    const other = C.composeError("out", "  no such service: web \n", 1);
+    const onlyOut = C.composeError("pull failed\n", "", 1);
+
+    assert.match(missing, /^command not found/);
+    assert.equal(other, "no such service: web");
+    assert.equal(onlyOut, "pull failed");
+});
