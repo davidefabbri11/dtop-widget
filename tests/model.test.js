@@ -140,3 +140,89 @@ test("actionTargets uses the visible selection when the clicked row is selected"
     assert.deepEqual(hiddenB, ["a"]);
     assert.deepEqual(unselected, ["c"]);
 });
+
+function cps(name, project, o) {
+    return ps(Object.assign({ id: name, name, composeProject: project }, o));
+}
+
+function groupKeys(items) {
+    return items.filter((i) => i.type === "group").map((i) => i.key);
+}
+
+test("groupRows orders groups by host then project with No compose project last", () => {
+    const rows = [
+        cps("s", "stada", { host: "b" }), cps("z", "zeta", { host: "a" }),
+        cps("n", "", { host: "a" }), cps("al", "alpha", { host: "a" }),
+    ];
+
+    const items = M.groupRows(rows, rows, { collapsed: {}, search: "" });
+
+    assert.deepEqual(groupKeys(items), ["a/alpha", "a/zeta", "a/", "b/stada"]);
+});
+
+test("groupRows lists member rows after their header in visible order", () => {
+    const rows = [cps("web", "stada"), cps("db", "stada"), cps("x", "other")];
+
+    const items = M.groupRows(rows, rows, { collapsed: {}, search: "" });
+
+    assert.deepEqual(items.map((i) => i.type === "group" ? "#" + i.project : i.row.name), ["#other", "x", "#stada", "web", "db"]);
+});
+
+test("groupRows totals count all project containers, not only visible ones", () => {
+    const all = [cps("a", "stada", { cpu: 2, memUsed: 10 }), cps("b", "stada", { state: "exited" }), cps("c", "stada", { state: "exited" })];
+
+    const items = M.groupRows([all[0]], all, { collapsed: {}, search: "" });
+
+    assert.equal(items.length, 2);
+    assert.equal(items[0].running, 1);
+    assert.equal(items[0].total, 3);
+    assert.equal(items[0].rows.length, 3);
+    assert.equal(items[0].cpu, 2);
+    assert.equal(items[0].memUsed, 10);
+    assert.equal(items[1].row.name, "a");
+});
+
+test("groupRows keeps a fully hidden project header when search is empty", () => {
+    const all = [cps("a", "stada", { state: "exited" })];
+
+    const items = M.groupRows([], all, { collapsed: {}, search: "" });
+
+    assert.deepEqual(items.map((i) => i.type), ["group"]);
+});
+
+test("groupRows drops the No compose project header when it has no visible rows", () => {
+    const all = [cps("a", "", { state: "exited" })];
+
+    const items = M.groupRows([], all, { collapsed: {}, search: "" });
+
+    assert.deepEqual(items, []);
+});
+
+test("groupRows hides collapsed members and marks the group collapsed", () => {
+    const rows = [cps("web", "stada"), cps("x", "other")];
+
+    const items = M.groupRows(rows, rows, { collapsed: { "local/stada": true }, search: "" });
+
+    assert.deepEqual(items.map((i) => i.type === "group" ? i.key + ":" + i.collapsed : i.row.name),
+        ["local/other:false", "x", "local/stada:true"]);
+});
+
+test("groupRows with a search shows only matching groups", () => {
+    const all = [cps("db", "stada"), cps("web", "sporting")];
+    const visible = [all[1]];
+
+    const byProject = M.groupRows(visible, all, { collapsed: {}, search: "stad" });
+    const byRow = M.groupRows(visible, all, { collapsed: {}, search: "web" });
+
+    assert.deepEqual(groupKeys(byProject), ["local/sporting", "local/stada"]);
+    assert.deepEqual(groupKeys(byRow), ["local/sporting"]);
+});
+
+test("displayedRows excludes rows of collapsed groups", () => {
+    const rows = [cps("web", "stada"), cps("x", "other")];
+    const items = M.groupRows(rows, rows, { collapsed: { "local/stada": true }, search: "" });
+
+    const shown = M.displayedRows(items);
+
+    assert.deepEqual(shown.map((r) => r.name), ["x"]);
+});

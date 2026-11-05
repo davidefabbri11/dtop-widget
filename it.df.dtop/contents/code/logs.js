@@ -94,8 +94,27 @@ function mergeLogs(existing, incoming, mode) {
     return append ? existing.concat(kept) : kept.concat(existing);
 }
 
+// `docker compose logs --no-color --timestamps`: "<container>   | <ts> <text>", streams interleaved
+// out of order. Keep the container name in the text and sort by time so mergeLogs' edges hold.
+function parseComposeLogLines(stdout) {
+    var lines = [];
+    String(stdout || "").split("\n").forEach(function (raw) {
+        if (raw.length === 0) return;
+        var m = /^(\S+)\s+\| ?(.*)$/.exec(raw);
+        var parsed = parseLogLines(m ? m[2] : raw)[0];
+        if (!parsed) return;
+        if (m) parsed.text = m[1] + " | " + parsed.text;
+        lines.push(parsed);
+    });
+    return lines
+        .map(function (l, i) { return { l: l, i: i, k: tsKey(l.ts) }; })
+        .sort(function (a, b) { return a.k < b.k ? -1 : a.k > b.k ? 1 : a.i - b.i; })
+        .map(function (x) { return x.l; });
+}
+
 if (typeof module !== "undefined" && module.exports) {
     module.exports = {
+        parseComposeLogLines: parseComposeLogLines,
         asRichText: asRichText,
         mergeLogs: mergeLogs,
         escapeHtml: escapeHtml,

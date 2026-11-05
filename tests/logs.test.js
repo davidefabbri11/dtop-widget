@@ -100,3 +100,12 @@ test("asRichText escapes untrusted text inside an explicit rich-text wrapper", (
 
     assert.equal(html, "<span style=\"white-space:pre-wrap\">image &lt;none&gt;\n&amp; more</span>");
 });
+
+test("parseComposeLogLines strips the padded prefix, keeps the name in text and sorts by time", () => {
+    const out = "b-1   | 2026-11-05T06:00:02.000000001Z two\na-1 | 2026-11-05T06:00:01Z one\n";
+
+    const lines = L.parseComposeLogLines(out);
+
+    assert.deepEqual(lines.map((l) => l.text), ["a-1 | one", "b-1 | two"]);
+    assert.equal(lines[0].ts, "2026-11-05T06:00:01Z");
+});
