@@ -41,7 +41,19 @@ groups | grep -w docker   # local hosts without sudo
 
 ## Install
 
-### From GitHub (zip, no git needed)
+### From a release (recommended)
+
+Download `it.df.dtop.plasmoid` from the [latest release](https://github.com/davidefabbri11/dtop-widget/releases/latest), or from the terminal:
+
+```bash
+cd ~/Downloads
+curl -L -O https://github.com/davidefabbri11/dtop-widget/releases/latest/download/it.df.dtop.plasmoid
+kpackagetool6 -t Plasma/Applet -i it.df.dtop.plasmoid
+```
+
+To upgrade, download the new file and run the same command with `-u` instead of `-i`, then restart Plasma (see Upgrade).
+
+### From the source zip (no git needed)
 
 ```bash
 cd ~/Downloads
