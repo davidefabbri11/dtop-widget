@@ -173,15 +173,15 @@ function composeCommand(host, action, project, fileSet) {
 }
 
 // Same options as logsCommand; compose prefixes each line with "<container> | ".
+// compose applies --tail per container and interleaves streams, so neither --tail with --until nor a
+// shell `tail` yields the newest N lines overall: the caller sorts and trims with Logs.keepNewest.
 function composeLogsCommand(host, project, opts) {
     var tail = opts.tail ? parseInt(opts.tail, 10) : 0;
     var cmd = dockerBase(host) + " compose -p " + shQuote(project) + " logs --no-color --timestamps";
     if (tail && !opts.until) cmd += " --tail " + tail;
     if (opts.since) cmd += " --since " + shQuote(opts.since);
     if (opts.until) cmd += " --until " + shQuote(opts.until);
-    cmd += " 2>&1";
-    if (tail && opts.until) cmd += " | tail -n " + tail;
-    return cmd;
+    return cmd + " 2>&1";
 }
 
 function dozzleUrl(host, row) {

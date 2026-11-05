@@ -112,8 +112,14 @@ function parseComposeLogLines(stdout) {
         .map(function (x) { return x.l; });
 }
 
+// Newest n of time-sorted lines (n <= 0: all). For project logs, where compose's --tail is per container.
+function keepNewest(lines, n) {
+    return n > 0 && lines.length > n ? lines.slice(lines.length - n) : lines;
+}
+
 if (typeof module !== "undefined" && module.exports) {
     module.exports = {
+        keepNewest: keepNewest,
         parseComposeLogLines: parseComposeLogLines,
         asRichText: asRichText,
         mergeLogs: mergeLogs,

@@ -48,7 +48,9 @@ ColumnLayout {
         var project = row.project || "";
         var cmd = project ? Cmd.composeLogsCommand(root.hostOf(row), project, opts)
                           : Cmd.logsCommand(root.hostOf(row), row.id, opts);
-        var parse = project ? Logs.parseComposeLogLines : Logs.parseLogLines;
+        var parse = project
+            ? function (o) { return Logs.keepNewest(Logs.parseComposeLogLines(o), opts.tail || 0); }
+            : Logs.parseLogLines;
         root.run(cmd, function (out, err, code) {
             if (e !== epoch) return;
             loading = false;

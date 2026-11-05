@@ -244,5 +244,7 @@ test("composeLogsCommand mirrors logsCommand options", () => {
     const until = C.composeLogsCommand(local, "stada", { until: "2026-11-05T06:00:00Z", tail: 500 });
 
     assert.equal(tail, "docker compose -p 'stada' logs --no-color --timestamps --tail 500 2>&1");
-    assert.equal(until, "docker compose -p 'stada' logs --no-color --timestamps --until '2026-11-05T06:00:00Z' 2>&1 | tail -n 500");
+    // --tail is per container in compose, and a shell `tail` over interleaved streams is arbitrary:
+    // older pages fetch everything before `until`; the newest N overall are kept in JS (keepNewest).
+    assert.equal(until, "docker compose -p 'stada' logs --no-color --timestamps --until '2026-11-05T06:00:00Z' 2>&1");
 });
