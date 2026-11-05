@@ -99,6 +99,91 @@ function shellCommand(host, id, terminalCommand) {
     return "setsid " + terminalCommand + " sh -c " + shQuote(exec) + " >/dev/null 2>&1 &";
 }
 
+// ----- docker compose (project actions) -----
+
+var COMPOSE_ARGS = {
+    start: "start", stop: "stop", restart: "restart", pause: "pause", unpause: "unpause",
+    down: "down", downVolumes: "down -v",
+    up: "up -d", pull: "pull", build: "build", recreate: "up -d --force-recreate"
+};
+var COMPOSE_ACTIONS = Object.keys(COMPOSE_ARGS);
+var FILE_ACTIONS = { up: true, pull: true, build: true, recreate: true };
+
+function needsFiles(action) {
+    return !!FILE_ACTIONS[action];
+}
+
+// A file set is (working_dir, config_files, environment_file). Containers of one project may come
+// from different file sets; use the one most containers share (tie: newest container), never the union.
+function pickFileSet(projectRows) {
+    var sets = {};
+    projectRows.forEach(function (r) {
+        if (!r.composeWorkingDir || r.composeConfigFiles.length === 0) return;
+        var key = r.composeWorkingDir + "\n" + r.composeConfigFiles.join(",") + "\n" + r.composeEnvFile;
+        var s = sets[key] || (sets[key] = {
+            workingDir: r.composeWorkingDir, configFiles: r.composeConfigFiles, envFile: r.composeEnvFile,
+            count: 0, newest: -Infinity
+        });
+        s.count++;
+        s.newest = Math.max(s.newest, r.createdMs || 0);
+    });
+    var best = null, usable = 0;
+    Object.keys(sets).forEach(function (k) {
+        var s = sets[k];
+        usable += s.count;
+        if (!best || s.count > best.count || (s.count === best.count && s.newest > best.newest)) best = s;
+    });
+    if (!best) return null;
+    return { workingDir: best.workingDir, configFiles: best.configFiles.slice(), envFile: best.envFile, others: usable - best.count };
+}
+
+function fileSetLabel(fileSet) {
+    return fileSet.configFiles[0].split("/").filter(function (p) { return p.length > 0; }).slice(-2).join("/");
+}
+
+function composeUnavailable(host, action, fileSet) {
+    if (!needsFiles(action)) return "";
+    if (/^(tcp|tls):\/\//.test(host.endpoint)) return "needs SSH access to the host";
+    if (!fileSet) return "no compose file labels on its containers";
+    return "";
+}
+
+// ssh://[user@]host[:port]
+function sshTarget(endpoint) {
+    var m = /^ssh:\/\/([^\/:]+(?:@[^\/:]+)?)(?::(\d+))?/.exec(endpoint);
+    return { dest: m[1], port: m[2] || "" };
+}
+
+function composeCommand(host, action, project, fileSet) {
+    if (!COMPOSE_ARGS.hasOwnProperty(action)) throw new Error("unknown compose action: " + action);
+    var reason = composeUnavailable(host, action, fileSet);
+    if (reason) throw new Error(action + ": " + reason);
+    var args = "-p " + shQuote(project) + " ";
+    if (!needsFiles(action)) return dockerBase(host) + " compose " + args + COMPOSE_ARGS[action];
+    args += fileSet.configFiles.map(function (f) { return "-f " + shQuote(f) + " "; }).join("")
+        + "--project-directory " + shQuote(fileSet.workingDir) + " "
+        + (fileSet.envFile ? "--env-file " + shQuote(fileSet.envFile) + " " : "")
+        + COMPOSE_ARGS[action];
+    if (host.endpoint.indexOf("ssh://") !== 0) return dockerBase(host) + " compose " + args;
+    // The compose files live on the remote host, which `docker -H ssh://` cannot read: run compose there.
+    var t = sshTarget(host.endpoint);
+    var remote = "cd " + shQuote(fileSet.workingDir) + " && docker compose " + args;
+    return "env SSH_ASKPASS_REQUIRE=never ssh -o BatchMode=yes " + (t.port ? "-p " + t.port + " " : "")
+        + shQuote(t.dest) + " " + shQuote(remote);
+}
+
+// Same options as logsCommand; compose prefixes each line with "<container> | ".
+function composeLogsCommand(host, project, opts) {
+    var tail = opts.tail ? parseInt(opts.tail, 10) : 0;
+    var cmd = dockerBase(host) + " compose -p " + shQuote(project) + " logs --no-color --timestamps";
+    if (tail && !opts.until) cmd += " --tail " + tail;
+    if (opts.since) cmd += " --since " + shQuote(opts.since);
+    if (opts.until) cmd += " --until " + shQuote(opts.until);
+    cmd += " 2>&1";
+    if (tail && opts.until) cmd += " | tail -n " + tail;
+    return cmd;
+}
+
 function dozzleUrl(host, row) {
     if (!host.dozzle) return "";
     return host.dozzle.replace(/\/+$/, "") + "/container/" + row.shortId;
@@ -118,6 +203,13 @@ if (typeof module !== "undefined" && module.exports) {
         inspectCommand: inspectCommand,
         logsCommand: logsCommand,
         shellCommand: shellCommand,
-        dozzleUrl: dozzleUrl
+        dozzleUrl: dozzleUrl,
+        COMPOSE_ACTIONS: COMPOSE_ACTIONS,
+        needsFiles: needsFiles,
+        pickFileSet: pickFileSet,
+        fileSetLabel: fileSetLabel,
+        composeUnavailable: composeUnavailable,
+        composeCommand: composeCommand,
+        composeLogsCommand: composeLogsCommand
     };
 }
