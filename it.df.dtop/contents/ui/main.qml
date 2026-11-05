@@ -178,7 +178,7 @@ PlasmoidItem {
         setBusy(group.key, true);
         run(cmd, function (out, err, code) {
             setBusy(group.key, false);
-            if (code !== 0) actionError = (actionError ? actionError + "\n" : "") + group.project + ": " + (err.trim() || out.trim());
+            if (code !== 0) actionError = (actionError ? actionError + "\n" : "") + group.project + ": " + Cmd.composeError(out, err, code);
             pollHost(h);
         });
     }

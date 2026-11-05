@@ -248,3 +248,32 @@ test("composeLogsCommand mirrors logsCommand options", () => {
     // older pages fetch everything before `until`; the newest N overall are kept in JS (keepNewest).
     assert.equal(until, "docker compose -p 'stada' logs --no-color --timestamps --until '2026-11-05T06:00:00Z' 2>&1");
 });
+
+test("pollError explains a missing docker CLI (exit 127)", () => {
+    const stderr = "sh: 1: docker: not found\n";
+
+    const msg = C.pollError(stderr, 127, 15);
+
+    assert.match(msg, /^docker CLI not found/);
+    assert.match(msg, /docs\.docker\.com\/engine\/install/);
+});
+
+test("composeError explains a missing Compose plugin", () => {
+    const shorthand = "unknown shorthand flag: 'p' in -p\n\nUsage:  docker [OPTIONS] COMMAND [ARG...]";
+    const unknown = "docker: unknown command: docker compose\n";
+    const legacy = "docker: 'compose' is not a docker command.\n";
+
+    const msgs = [C.composeError("", shorthand, 125), C.composeError("", unknown, 1), C.composeError("", legacy, 1)];
+
+    msgs.forEach((m) => assert.match(m, /^Docker Compose plugin not found/));
+});
+
+test("composeError explains a missing docker or ssh and passes other errors through", () => {
+    const missing = C.composeError("", "env: 'ssh': No such file or directory", 127);
+    const other = C.composeError("out", "  no such service: web \n", 1);
+    const onlyOut = C.composeError("pull failed\n", "", 1);
+
+    assert.match(missing, /^command not found/);
+    assert.equal(other, "no such service: web");
+    assert.equal(onlyOut, "pull failed");
+});

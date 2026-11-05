@@ -4,6 +4,7 @@
 var SEP = "@@DTOP-STATS@@";
 var JSON_FORMAT = "'{{json .}}'";
 var ACTIONS = { start: true, stop: true, restart: true, rm: true };
+var INSTALL_HINT = "install Docker (https://docs.docker.com/engine/install/) and make sure `docker` is on plasmashell's PATH";
 
 function shQuote(s) {
     return "'" + String(s).replace(/'/g, "'\\''") + "'";
@@ -49,6 +50,8 @@ function splitPoll(stdout) {
 // ps and stats usually fail with the same message; `timeout` exits with 124.
 function pollError(stderr, code, timeoutSec) {
     if (code === 124) return "timed out after " + timeoutSec + " s (host unreachable or waiting for an ssh prompt?)";
+    // sh/env/timeout exit 127 when the program itself is missing.
+    if (code === 127) return "docker CLI not found: " + INSTALL_HINT;
     var seen = {};
     var lines = String(stderr || "").split("\n").map(function (l) { return l.trim(); }).filter(function (l) {
         if (!l || seen[l]) return false;
@@ -172,6 +175,16 @@ function composeCommand(host, action, project, fileSet) {
         + shQuote(t.dest) + " " + shQuote(remote);
 }
 
+// Error text for a failed compose command. Without the Compose plugin, docker parses `compose -p`
+// itself ("unknown shorthand flag: 'p'"); exit 127 means docker (or ssh, for ssh:// hosts) is missing.
+function composeError(stdout, stderr, code) {
+    var text = String(stderr || "").trim() || String(stdout || "").trim();
+    if (code === 127) return "command not found (docker, or ssh for ssh:// hosts): " + INSTALL_HINT + "\n" + text;
+    if (/unknown shorthand flag: 'p'|unknown command: docker compose|'compose' is not a docker command/.test(text))
+        return "Docker Compose plugin not found: install Docker Compose v2 (https://docs.docker.com/compose/install/linux/), e.g. the docker-compose-plugin package";
+    return text;
+}
+
 // Same options as logsCommand; compose prefixes each line with "<container> | ".
 // compose applies --tail per container and interleaves streams, so neither --tail with --until nor a
 // shell `tail` yields the newest N lines overall: the caller sorts and trims with Logs.keepNewest.
@@ -210,6 +223,7 @@ if (typeof module !== "undefined" && module.exports) {
         fileSetLabel: fileSetLabel,
         composeUnavailable: composeUnavailable,
         composeCommand: composeCommand,
+        composeError: composeError,
         composeLogsCommand: composeLogsCommand
     };
 }
