@@ -8,9 +8,10 @@
             { "Name": "Davide Fabbri", "Email": "davide.fabbri11@gmail.com" }
         ],
         "Category": "System Information",
-        "License": "MIT",
-        "Version": "0.1.0",
-        "Website": ""
+        "License": "GPL-2.0-or-later",
+        "Version": "0.2.0",
+        "Website": "https://github.com/davidefabbri11/dtop-widget",
+        "BugReportUrl": "https://github.com/davidefabbri11/dtop-widget/issues"
     },
     "KPackageStructure": "Plasma/Applet",
     "X-Plasma-API": "declarativeappletscript",
