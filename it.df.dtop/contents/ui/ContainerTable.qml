@@ -12,11 +12,15 @@ ColumnLayout {
 
     signal menuRequested(var row, Item item, real x, real y)
     signal logsRequested(var row)
+    signal projectMenuRequested(var group, Item item, real x, real y)
 
     property string currentKey: ""
     property string anchorKey: ""
 
-    readonly property var rows: root.visibleRows
+    // `rows`: containers on screen (selection, Shift ranges and action targets use only these);
+    // `items`: what the list draws, i.e. rows plus compose group headers when grouping is on.
+    readonly property var rows: root.displayedRows
+    readonly property var items: root.tableItems
     readonly property var currentRow: {
         var i = indexOfKey(currentKey);
         return i >= 0 ? rows[i] : null;
@@ -24,6 +28,11 @@ ColumnLayout {
 
     function indexOfKey(key) {
         for (var i = 0; i < rows.length; i++) if (rows[i].key === key) return i;
+        return -1;
+    }
+
+    function itemIndexOfKey(key) {
+        for (var i = 0; i < items.length; i++) if (items[i].type === "row" && items[i].row.key === key) return i;
         return -1;
     }
 
@@ -42,7 +51,7 @@ ColumnLayout {
     function clickRow(index, mouse) {
         var row = rows[index];
         currentKey = row.key;
-        list.currentIndex = index;
+        list.currentIndex = itemIndexOfKey(row.key);
         list.forceActiveFocus();
         if (mouse.button === Qt.RightButton) {
             if (!root.selection[row.key]) selectOnly(row);
@@ -66,10 +75,10 @@ ColumnLayout {
     function moveTo(index) {
         if (rows.length === 0) return;
         index = Math.max(0, Math.min(rows.length - 1, index));
-        list.currentIndex = index;
         currentKey = rows[index].key;
+        list.currentIndex = itemIndexOfKey(currentKey);
         selectOnly(rows[index]);
-        list.positionViewAtIndex(index, ListView.Contain);
+        list.positionViewAtIndex(list.currentIndex, ListView.Contain);
     }
 
     function sortBy(id) {
@@ -83,7 +92,7 @@ ColumnLayout {
 
     // Keep the highlighted row on the same container across polls and re-sorts.
     // callLater: a changed int model resets the view (currentIndex -> 0) after this handler may have run.
-    onRowsChanged: Qt.callLater(function () { list.currentIndex = table.indexOfKey(table.currentKey); })
+    onItemsChanged: Qt.callLater(function () { list.currentIndex = table.itemIndexOfKey(table.currentKey); })
 
     Row {
         Layout.fillWidth: true
@@ -122,24 +131,55 @@ ColumnLayout {
             highlightFollowsCurrentItem: false
             keyNavigationEnabled: false
             // An int model keeps delegates (and scroll position) alive across polls;
-            // delegates read their row from root.visibleRows.
-            model: table.rows.length
-            delegate: ContainerRow {
+            // delegates read their item from root.tableItems.
+            model: table.items.length
+            delegate: Item {
+                id: cell
+                readonly property var item: table.items[index] || null
                 width: ListView.view.width
-                row: table.rows[index]
-                selected: !!root.selection[row.key]
-                current: ListView.isCurrentItem && list.activeFocus
-                stale: !!root.hostState[row.host] && root.hostState[row.host].status === "error"
-                onClicked: function (mouse, item) {
-                    table.clickRow(index, mouse);
-                    if (mouse.button === Qt.RightButton) table.menuRequested(row, item, mouse.x, mouse.y);
+                height: loader.item ? loader.item.height : 0
+
+                Loader {
+                    id: loader
+                    width: parent.width
+                    active: !!cell.item
+                    sourceComponent: cell.item && cell.item.type === "group" ? groupComponent : rowComponent
                 }
-                onDoubleClicked: table.logsRequested(row)
+
+                Component {
+                    id: rowComponent
+                    ContainerRow {
+                        row: cell.item.row
+                        selected: !!root.selection[row.key]
+                        current: cell.ListView.isCurrentItem && list.activeFocus
+                        stale: !!root.hostState[row.host] && root.hostState[row.host].status === "error"
+                        onClicked: function (mouse, item) {
+                            table.clickRow(table.indexOfKey(row.key), mouse);
+                            if (mouse.button === Qt.RightButton) table.menuRequested(row, item, mouse.x, mouse.y);
+                        }
+                        onDoubleClicked: table.logsRequested(row)
+                    }
+                }
+
+                Component {
+                    id: groupComponent
+                    GroupHeader {
+                        group: cell.item
+                        busy: !!root.busyGroups[group.key]
+                        onToggled: {
+                            var c = Object.assign({}, root.collapsedGroups);
+                            if (c[group.key]) delete c[group.key]; else c[group.key] = true;
+                            root.collapsedGroups = c;
+                        }
+                        onActionRequested: function (action) { root.composeAct(group, action); }
+                        onMenuRequested: function (item, x, y) { table.projectMenuRequested(group, item, x, y); }
+                    }
+                }
             }
 
             Keys.onPressed: function (event) {
                 var page = Math.max(1, Math.floor(list.height / (Kirigami.Units.gridUnit * 1.4)) - 1);
-                var i = list.currentIndex;
+                var i = table.indexOfKey(table.currentKey);
                 switch (event.key) {
                 case Qt.Key_Down: case Qt.Key_J: table.moveTo(i + 1); break;
                 case Qt.Key_Up: case Qt.Key_K: table.moveTo(i - 1); break;
@@ -148,7 +188,7 @@ ColumnLayout {
                 case Qt.Key_Home: table.moveTo(0); break;
                 case Qt.Key_End: table.moveTo(table.rows.length - 1); break;
                 case Qt.Key_Return: case Qt.Key_Enter:
-                    if (table.currentRow && list.currentItem)
+                    if (table.currentRow && list.currentItem && list.currentIndex >= 0)
                         table.menuRequested(table.currentRow, list.currentItem, Kirigami.Units.gridUnit * 4, list.currentItem.height);
                     break;
                 case Qt.Key_Right:
@@ -162,7 +202,7 @@ ColumnLayout {
     }
 
     PlasmaComponents.Label {
-        visible: table.rows.length === 0
+        visible: table.items.length === 0
         Layout.alignment: Qt.AlignHCenter
         Layout.margins: Kirigami.Units.largeSpacing
         opacity: 0.6

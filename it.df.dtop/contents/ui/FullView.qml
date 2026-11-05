@@ -44,6 +44,14 @@ PlasmaExtras.Representation {
                 PlasmaComponents.ToolTip.text: "Show stopped containers too"
             }
             PlasmaComponents.ToolButton {
+                icon.name: "view-group"
+                text: "Group"
+                checkable: true
+                checked: Plasmoid.configuration.groupByCompose
+                onToggled: Plasmoid.configuration.groupByCompose = checked
+                PlasmaComponents.ToolTip.text: "Group containers by Compose project"
+            }
+            PlasmaComponents.ToolButton {
                 id: columnsButton
                 icon.name: "view-list-details"
                 text: "Columns"
@@ -116,6 +124,7 @@ PlasmaExtras.Representation {
                     actionMenu.popup(item, x, y);
                 }
                 onLogsRequested: function (row) { full.showLogs(row); }
+                onProjectMenuRequested: function (group, item, x, y) { console.log("project menu", group.key); }
             }
 
             DetailsView {

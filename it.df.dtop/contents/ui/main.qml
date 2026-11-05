@@ -47,6 +47,14 @@ PlasmoidItem {
 
     readonly property var visibleRows: Model.sortRows(
         Model.filterRows(rows, { showAll: cfg.showAll, search: searchText }), cfg.sortKey, cfg.sortDesc)
+    property var collapsedGroups: ({})  // { groupKey: true }, in memory only
+    property var busyGroups: ({})       // { groupKey: true } while a compose command runs
+    // What the table shows: group headers + rows when grouping, else just rows.
+    readonly property var tableItems: cfg.groupByCompose
+        ? Model.groupRows(visibleRows, rows, { collapsed: collapsedGroups, search: searchText })
+        : visibleRows.map(function (r) { return { type: "row", row: r }; })
+    // Rows actually on screen (collapsed groups excluded): the only rows actions may target.
+    readonly property var displayedRows: Model.displayedRows(tableItems)
     readonly property var summaries: hosts.map(function (h) { return Model.hostSummary(rows, h.name); })
     readonly property int runningCount: summaries.reduce(function (a, s) { return a + s.running; }, 0)
     readonly property int totalCount: summaries.reduce(function (a, s) { return a + s.total; }, 0)
@@ -147,6 +155,10 @@ PlasmoidItem {
                 pollHost(h);
             });
         });
+    }
+
+    function composeAct(group, action) {
+        console.log("composeAct", group.key, action);   // wired in Task 5
     }
 
     function openShell(row) {

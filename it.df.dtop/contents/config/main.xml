@@ -11,6 +11,9 @@
     <entry name="showAll" type="Bool">
       <default>true</default>
     </entry>
+    <entry name="groupByCompose" type="Bool">
+      <default>false</default>
+    </entry>
     <entry name="sortKey" type="String">
       <default>name</default>
     </entry>
