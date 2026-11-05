@@ -101,3 +101,25 @@ test("parseStats keys by full container id with numeric metrics", () => {
     });
     assert.equal(Object.keys(stats).length, 3);
 });
+
+test("parsePs exposes raw compose labels separately from the display group", () => {
+    const line = psLine({ Labels: "dev.dozzle.group=shown,com.docker.compose.project=stada,com.docker.compose.project.working_dir=/w/next,com.docker.compose.project.config_files=/w/next/a.yml,/w/next/b.yml,com.docker.compose.project.environment_file=,com.docker.compose.service=api" });
+
+    const row = P.parsePs(line, "local")[0];
+
+    assert.equal(row.compose, "shown");
+    assert.equal(row.composeProject, "stada");
+    assert.equal(row.composeWorkingDir, "/w/next");
+    assert.deepEqual(row.composeConfigFiles, ["/w/next/a.yml", "/w/next/b.yml"]);
+    assert.equal(row.composeEnvFile, "");
+    assert.equal(row.composeService, "api");
+});
+
+test("parsePs gives empty compose fields to non-compose containers", () => {
+    const line = psLine({});
+
+    const row = P.parsePs(line, "local")[0];
+
+    assert.equal(row.composeProject, "");
+    assert.deepEqual(row.composeConfigFiles, []);
+});
