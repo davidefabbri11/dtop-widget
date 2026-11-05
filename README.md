@@ -4,6 +4,14 @@ A KDE Plasma 6 widget (`it.df.dtop`) that does what the [`dtop`](https://github.
 
 It drives the `docker` CLI, so anything `docker -H …` can reach works.
 
+![Grouped by Compose project](screenshots/dtop-grouped-show-all.png)
+
+| Flat view | Project logs |
+|---|---|
+| ![Flat view](screenshots/dtop-flat.png) | ![Project logs](screenshots/dtop-project-logs.png) |
+
+*Screenshots use demo data.*
+
 > **Vibecoded.** This widget, its tests and this README were written almost entirely by an AI coding assistant (Claude Code), directed and reviewed by a human.
 > It is tested on one machine only (see Requirements). Read the code before trusting it with production hosts; issues and fixes are welcome.
 
