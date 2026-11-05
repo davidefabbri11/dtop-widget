@@ -58,9 +58,16 @@ SSH hosts must work non-interactively (key auth / agent); a host that hangs time
 - Action menu: Logs, Details (`docker inspect`), Start, Stop, Restart, Remove (with confirmation), Open shell (in the configured terminal), Open in Dozzle, Select compose project.
   Actions apply to the whole selection when the clicked row is part of it.
 - Logs: last N lines (Settings → Log lines per page), "Load older" pages backwards, Follow appends new lines, JSON toggle colourises JSON log lines.
+- Group (toolbar): groups the table by Compose project (`com.docker.compose.project`), one collapsible header per host and project; containers without a project go under "No compose project".
+  Header: status (`running N/M` counts all of the project's containers), CPU/memory, and ▶ Start, ■ Stop, ⟳ Restart, ⋯ (or right-click) for the project menu: Start, Up (apply changes), Stop, Restart, Pause, Unpause, Pull images, Build, Recreate, Project logs, Select all containers, Down… (confirmation, optional `-v`).
+  Up, Pull, Build and Recreate need the compose files: they use the file set (`working_dir` + `config_files` labels) shared by most of the project's containers, run over `ssh` on `ssh://` hosts, and are disabled on `tcp://`/`tls://` hosts.
+  Containers in a collapsed group are never targeted by container actions.
 
 ## Known limitations
 
 - `docker stats` rounds network/disk counters to 3 significant figures (`35MB`), so low rates jump between 0 and bursts.
 - Stats (CPU, memory, I/O) are only collected while the popup is open; the panel only needs container counts.
 - The Dozzle link format is `<dozzle>/container/<short id>`; it was not verified against a live Dozzle.
+- A project disappears from the grouped view after Down: the list comes from existing containers (same as `docker compose ls`).
+- Project actions act on every container of the project, including ones hidden by the host's `filter=` options.
+- No live output for Pull/Build/Up: the result (or error) shows when the command exits.
