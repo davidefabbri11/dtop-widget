@@ -157,8 +157,30 @@ PlasmoidItem {
         });
     }
 
+    function setBusy(key, busy) {
+        var b = Object.assign({}, busyGroups);
+        if (busy) b[key] = true; else delete b[key];
+        busyGroups = b;
+    }
+
+    // `docker compose` on a whole project. No timeout: pull/build can legitimately take minutes.
     function composeAct(group, action) {
-        console.log("composeAct", group.key, action);   // wired in Task 5
+        var h = hostOf({ host: group.host });
+        if (!h || busyGroups[group.key]) return;
+        var cmd;
+        try {
+            cmd = Cmd.composeCommand(h, action, group.project, Cmd.pickFileSet(group.rows));
+        } catch (e) {
+            actionError = group.project + ": " + e.message;
+            return;
+        }
+        actionError = "";
+        setBusy(group.key, true);
+        run(cmd, function (out, err, code) {
+            setBusy(group.key, false);
+            if (code !== 0) actionError = (actionError ? actionError + "\n" : "") + group.project + ": " + (err.trim() || out.trim());
+            pollHost(h);
+        });
     }
 
     function openShell(row) {

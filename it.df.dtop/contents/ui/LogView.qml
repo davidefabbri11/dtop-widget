@@ -44,14 +44,19 @@ ColumnLayout {
     function fetch(opts, mode) {
         var e = epoch;
         loading = true;
-        root.run(Cmd.logsCommand(root.hostOf(row), row.id, opts), function (out, err, code) {
+        // `row` is a container row or a compose project target { project, host, name }.
+        var project = row.project || "";
+        var cmd = project ? Cmd.composeLogsCommand(root.hostOf(row), project, opts)
+                          : Cmd.logsCommand(root.hostOf(row), row.id, opts);
+        var parse = project ? Logs.parseComposeLogLines : Logs.parseLogLines;
+        root.run(cmd, function (out, err, code) {
             if (e !== epoch) return;
             loading = false;
             if (code !== 0) { error = String(out + err).trim() || ("docker logs failed (exit code " + code + ")"); return; }
             error = "";
             var atEnd = list.atYEnd || logModel.count === 0;
             var before = lines.length;
-            lines = Logs.mergeLogs(lines, Logs.parseLogLines(out), mode);
+            lines = Logs.mergeLogs(lines, parse(out), mode);
             var added = lines.length - before;
             if (mode === "append") {
                 for (var i = before; i < lines.length; i++) logModel.append({ html: render(lines[i]) });
