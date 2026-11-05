@@ -135,3 +135,17 @@ SSH hosts must work non-interactively (key auth / agent); a host that hangs time
 - A project disappears from the grouped view after Down: the list comes from existing containers (same as `docker compose ls`).
 - Project actions act on every container of the project, including ones hidden by the host's `filter=` options.
 - No live output for Pull/Build/Up: the result (or error) shows when the command exits.
+
+## Release
+
+```bash
+npm test
+npm run package   # builds it.df.dtop.plasmoid (metadata.json at the archive root)
+```
+
+Bump `KPlugin.Version` in `it.df.dtop/metadata.json` (and `version` in `package.json`) before building.
+Install the file locally with `kpackagetool6 -t Plasma/Applet -i it.df.dtop.plasmoid`, or upload it to the KDE Store under **Plasma 6 Applets**, tagged `ai-generated`.
+
+## License
+
+GPL-2.0-or-later. See [LICENSE](LICENSE).

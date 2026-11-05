@@ -1,9 +1,11 @@
 {
     "name": "dtop-plasma-widget",
-    "version": "0.1.0",
+    "version": "0.2.0",
+    "license": "GPL-2.0-or-later",
     "private": true,
     "type": "commonjs",
     "scripts": {
-        "test": "node --test"
+        "test": "node --test",
+        "package": "rm -f it.df.dtop.plasmoid && cd it.df.dtop && zip -qr -X ../it.df.dtop.plasmoid ."
     }
 }
