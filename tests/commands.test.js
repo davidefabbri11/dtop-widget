@@ -277,3 +277,38 @@ test("composeError explains a missing docker or ssh and passes other errors thro
     assert.equal(other, "no such service: web");
     assert.equal(onlyOut, "pull failed");
 });
+
+test("systemStatsCommand reads /proc locally under timeout", () => {
+    const cmd = C.systemStatsCommand(host("local"), 15);
+
+    assert.equal(cmd, "timeout 15 cat /proc/stat /proc/meminfo /proc/loadavg /proc/uptime /proc/net/dev");
+});
+
+test("systemStatsCommand reads /proc over a pooled, non-interactive ssh connection", () => {
+    const cmds = [host("ssh://me@prod"), host("ssh://prod:2222")].map((h) => C.systemStatsCommand(h, 15));
+
+    const opts = "-o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=5 -o ServerAliveCountMax=2"
+        + " -o ControlMaster=auto -o ControlPath=\"$XDG_RUNTIME_DIR/dtop-ssh-%C\" -o ControlPersist=60";
+    assert.deepEqual(cmds, [
+        "timeout 15 env SSH_ASKPASS_REQUIRE=never ssh " + opts + " 'me@prod' cat " + C.PROC_FILES,
+        "timeout 15 env SSH_ASKPASS_REQUIRE=never ssh " + opts + " -p '2222' 'prod' cat " + C.PROC_FILES,
+    ]);
+});
+
+test("systemStatsCommand is null for hosts without shell access", () => {
+    const cmds = ["tcp://h:2375", "tls://h:2376", "unix:///run/docker.sock"].map((e) => C.systemStatsCommand(host(e), 15));
+
+    assert.deepEqual(cmds, [null, null, null]);
+});
+
+test("dockerInfoCommand asks for cores and total memory under timeout", () => {
+    const cmd = C.dockerInfoCommand(host("local"), 15);
+
+    assert.equal(cmd, "timeout 15 docker info --format '{{.NCPU}} {{.MemTotal}}'");
+});
+
+test("parseDockerInfo reads cores and bytes, null on garbage or the 0 0 an unreachable daemon prints", () => {
+    const results = [C.parseDockerInfo("10 34359738368\n"), C.parseDockerInfo("error\n"), C.parseDockerInfo("0 0\n")];
+
+    assert.deepEqual(results, [{ cores: 10, memTotal: 34359738368 }, null, null]);
+});

@@ -64,7 +64,9 @@ var SORT_VALUE = {
     net_rx: function (r) { return nullable(r.netRxRate); },
     io_read: function (r) { return nullable(r.readRate); },
     io_write: function (r) { return nullable(r.writeRate); },
-    uptime: function (r) { return -r.createdMs; },   // ascending age = newest first
+    // ascending = most recently started first, containers that are not up last
+    uptime: function (r) { return r.upSec === null || r.upSec === undefined ? Infinity : r.upSec; },
+    created: function (r) { return -r.createdMs; },         // ascending = newest first
     restarts: function (r) { return r.restarts; }
 };
 
@@ -92,7 +94,8 @@ function filterRows(rows, opts) {
     });
 }
 
-function hostSummary(rows, hostName) {
+// `info` is the host's `docker info` ({ cores, memTotal }) or null while unknown.
+function hostSummary(rows, hostName, info) {
     var s = { running: 0, total: 0, cpu: 0, memUsed: 0, netRxRate: 0, netTxRate: 0, unhealthy: 0 };
     rows.forEach(function (r) {
         if (r.host !== hostName) return;
@@ -104,6 +107,10 @@ function hostSummary(rows, hostName) {
         s.netRxRate += r.netRxRate || 0;
         s.netTxRate += r.netTxRate || 0;
     });
+    s.cores = info ? info.cores : null;
+    s.memTotal = info ? info.memTotal : null;
+    s.cpuOfCores = info && info.cores > 0 ? s.cpu / info.cores : null;
+    s.memPercent = info && info.memTotal > 0 ? 100 * s.memUsed / info.memTotal : null;
     return s;
 }
 

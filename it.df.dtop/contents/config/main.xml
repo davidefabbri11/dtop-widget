@@ -21,9 +21,12 @@
       <default>false</default>
     </entry>
     <entry name="columns" type="StringList">
-      <default>id,status,name,host,compose,cpu,memory,net_tx,net_rx,uptime</default>
+      <default>id,status,logo,name,host,compose,cpu,memory,net_tx,net_rx,uptime</default>
     </entry>
     <entry name="statsHeader" type="Bool">
+      <default>true</default>
+    </entry>
+    <entry name="logTimestamps" type="Bool">
       <default>true</default>
     </entry>
     <entry name="logTail" type="Int">

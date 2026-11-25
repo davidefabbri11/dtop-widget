@@ -18,12 +18,9 @@ test("formatPercent keeps one decimal", () => {
     assert.equal(F.formatPercent(113.456), "113.5%");
 });
 
-test("formatMem shows usage over limit", () => {
-    assert.equal(F.formatMem(365.4 * 1024 * 1024, 30.99 * 1024 ** 3), "365.4 MiB / 31.0 GiB");
-});
-
-test("formatUptime strips the Up prefix for running containers only", () => {
-    assert.equal(F.formatUptime({ state: "running", status: "Up 2 hours (healthy)" }), "2 hours (healthy)");
+test("formatUptime strips the Up prefix and the health suffix, for running containers only", () => {
+    assert.equal(F.formatUptime({ state: "running", status: "Up 2 hours (healthy)" }), "2 hours");
+    assert.equal(F.formatUptime({ state: "running", status: "Up About an hour" }), "About an hour");
     assert.equal(F.formatUptime({ state: "exited", status: "Exited (0) 3 minutes ago" }), "");
 });
 
@@ -39,7 +36,7 @@ test("formatCell renders each column id from a row", () => {
     const cells = ids.map(id => F.formatCell(row, id));
 
     assert.deepEqual(cells, ["04e431077791", "Up 2 hours", "web", "local", "proj", "nginx:1", "0.0.0.0:80->80/tcp", "7",
-        "1.2%", "1.5 KiB / 2.0 KiB", "1.0 KiB/s", "—", "0 B/s", "2.0 KiB/s", "2 hours", "3", ""]);
+        "1.2%", "1.5K/2K", "1.0 KiB/s", "—", "0 B/s", "2.0 KiB/s", "2 hours", "3", ""]);
 });
 
 test("formatCell blanks metrics for stopped containers", () => {
@@ -48,4 +45,66 @@ test("formatCell blanks metrics for stopped containers", () => {
     const cells = ["pids", "cpu", "memory", "net_tx"].map(id => F.formatCell(row, id));
 
     assert.deepEqual(cells, ["", "", "", ""]);
+});
+
+test("level maps a percentage to ok / warn / high, empty when unknown", () => {
+    const levels = [0, 49.9, 50, 79.9, 80, 250, null].map(F.level);
+
+    assert.deepEqual(levels, ["ok", "ok", "warn", "warn", "high", "high", ""]);
+});
+
+test("formatCompactBytes uses one-letter binary units and drops a trailing .0", () => {
+    const values = [0, 512 * 1024 ** 2, 25.5 * 1024 ** 3, 32 * 1024 ** 3, null].map(F.formatCompactBytes);
+
+    assert.deepEqual(values, ["0B", "512M", "25.5G", "32G", "—"]);
+});
+
+test("formatHostUptime shows the two largest units", () => {
+    const values = [2400, 32700, 724500, null].map(F.formatHostUptime);
+
+    assert.deepEqual(values, ["40m", "9h 5m", "8d 9h", "—"]);
+});
+
+test("formatLoad shows three two-decimal averages, a dash when unknown", () => {
+    const values = [F.formatLoad([2.84, 2.61, 2.4]), F.formatLoad(null)];
+
+    assert.deepEqual(values, ["2.84 2.61 2.40", "—"]);
+});
+
+test("statusIcon maps state and health to a dtop symbol and tone", () => {
+    const rows = [
+        { state: "running", health: "unhealthy" }, { state: "dead", health: "" }, { state: "restarting", health: "" },
+        { state: "exited", health: "", status: "Exited (0) 1 hour ago" }, { state: "exited", health: "", status: "Exited (1) 1 hour ago" },
+        { state: "paused", health: "" }, { state: "created", health: "" }, { state: "running", health: "healthy" },
+        { state: "running", health: "starting" }, { state: "running", health: "" },
+    ];
+
+    const icons = rows.map(F.statusIcon);
+
+    assert.deepEqual(icons, [
+        { glyph: "✖", tone: "high" }, { glyph: "✖", tone: "high" }, { glyph: "↻", tone: "warn" },
+        { glyph: "■", tone: "high" }, { glyph: "■", tone: "high" },
+        { glyph: "‖", tone: "warn" }, { glyph: "○", tone: "off" }, { glyph: "✓", tone: "ok" },
+        { glyph: "▶", tone: "warn" }, { glyph: "▶", tone: "ok" },
+    ]);
+});
+
+test("memory cell omits the limit when docker reports none", () => {
+    const row = { state: "running", memUsed: 1536, memLimit: 0 };
+
+    const cell = F.formatCell(row, "memory");
+
+    assert.equal(cell, "1.5K");
+});
+
+test("memPercent is usage over limit, null without a limit", () => {
+    const values = [F.memPercent({ memUsed: 1536, memLimit: 2048 }), F.memPercent({ memUsed: 1536, memLimit: 0 })];
+
+    assert.deepEqual(values, [75, null]);
+});
+
+test("created cell shows docker's RunningFor text", () => {
+    const cell = F.formatCell({ state: "exited", createdText: "3 weeks ago" }, "created");
+
+    assert.equal(cell, "3 weeks ago");
 });

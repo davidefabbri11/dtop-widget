@@ -2,7 +2,8 @@ import QtQuick
 import org.kde.plasma.components as PlasmaComponents
 import org.kde.kirigami as Kirigami
 import "../code/format.js" as Format
-import "../code/model.js" as Model
+import "../code/logos.js" as Logos
+import "../code/logodata.js" as LogoData
 
 // One table row. `row` is a model.js Row; cells follow root.visibleColumns.
 Rectangle {
@@ -21,11 +22,11 @@ Rectangle {
     border.color: Kirigami.Theme.highlightColor
     opacity: stale ? 0.5 : 1
 
-    function statusColor() {
-        var rank = Model.statusRank(row);
-        if (rank <= 3) return Kirigami.Theme.negativeTextColor;
-        if (rank <= 6) return Kirigami.Theme.neutralTextColor;
-        if (rank === 7) return Kirigami.Theme.disabledTextColor;
+    // Colour of a Format.statusIcon tone or a Format.level band.
+    function toneColor(tone) {
+        if (tone === "high") return Kirigami.Theme.negativeTextColor;
+        if (tone === "warn") return Kirigami.Theme.neutralTextColor;
+        if (tone === "off") return Kirigami.Theme.disabledTextColor;
         return Kirigami.Theme.positiveTextColor;
     }
 
@@ -36,21 +37,49 @@ Rectangle {
         Repeater {
             model: root.visibleColumns
             delegate: Item {
+                id: cell
                 width: modelData.width * Kirigami.Units.gridUnit
                 height: rowItem.height
 
-                Rectangle {
+                readonly property bool metricCell: (modelData.id === "cpu" || modelData.id === "memory")
+                                                   && rowItem.row.state === "running"
+                readonly property bool barCell: metricCell && !root.compactTable
+                readonly property var percent: modelData.id === "cpu" ? rowItem.row.cpu : Format.memPercent(rowItem.row)
+                // App logo (bundled from dtop); "" when the image has none.
+                readonly property string logo: modelData.id === "logo"
+                    ? (Logos.logoForImage(rowItem.row.image, Kirigami.Theme.backgroundColor.hslLightness > 0.5, LogoData) || "")
+                    : ""
+
+                PlasmaComponents.Label {
                     visible: modelData.id === "status"
                     anchors.centerIn: parent
-                    width: Kirigami.Units.smallSpacing * 2.5
+                    text: Format.statusIcon(rowItem.row).glyph
+                    color: rowItem.toneColor(Format.statusIcon(rowItem.row).tone)
+                }
+                StatBar {
+                    id: cellBar
+                    visible: cell.barCell
+                    anchors.left: parent.left
+                    anchors.leftMargin: Kirigami.Units.smallSpacing
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Kirigami.Units.gridUnit * 4
+                    percent: cell.percent
+                }
+                Image {
+                    visible: cell.logo !== ""
+                    anchors.centerIn: parent
+                    width: Kirigami.Units.iconSizes.small
                     height: width
-                    radius: width / 2
-                    color: rowItem.statusColor()
+                    sourceSize.width: 32
+                    sourceSize.height: 32
+                    asynchronous: true
+                    source: cell.logo ? "../images/app-logos/" + cell.logo + ".png" : ""
                 }
                 PlasmaComponents.Label {
-                    visible: modelData.id !== "status"
+                    visible: modelData.id !== "status" && modelData.id !== "logo"
                     anchors.fill: parent
-                    anchors.leftMargin: Kirigami.Units.smallSpacing
+                    anchors.leftMargin: cell.barCell ? cellBar.width + Kirigami.Units.smallSpacing * 2 : Kirigami.Units.smallSpacing
+                    color: cell.metricCell ? rowItem.toneColor(Format.level(cell.percent)) : Kirigami.Theme.textColor
                     anchors.rightMargin: Kirigami.Units.smallSpacing
                     verticalAlignment: Text.AlignVCenter
                     elide: Text.ElideRight

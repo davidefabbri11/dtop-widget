@@ -77,10 +77,18 @@ test("sortRows by cpu descending puts the highest first and returns a new array"
     assert.notEqual(sorted, rows);
 });
 
-test("sortRows by uptime ascending puts the newest container first", () => {
-    const rows = [ps({ id: "1", name: "old", createdMs: 1000 }), ps({ id: "2", name: "new", createdMs: 5000 })];
+test("sortRows by uptime ascending puts the most recently started container first", () => {
+    const rows = [ps({ id: "1", name: "long", createdMs: 5000, upSec: 9000 }), ps({ id: "2", name: "restarted", createdMs: 1000, upSec: 60 })];
 
     const names = M.sortRows(rows, "uptime", false).map(r => r.name);
+
+    assert.deepEqual(names, ["restarted", "long"]);
+});
+
+test("sortRows by created ascending puts the newest container first", () => {
+    const rows = [ps({ id: "1", name: "old", createdMs: 1000 }), ps({ id: "2", name: "new", createdMs: 5000 })];
+
+    const names = M.sortRows(rows, "created", false).map(r => r.name);
 
     assert.deepEqual(names, ["new", "old"]);
 });
@@ -123,9 +131,26 @@ test("hostSummary aggregates one host and treats null rates as zero", () => {
         Object.assign(ps({ id: "4" }), { host: "other", cpu: 50, memUsed: 1, netRxRate: 1, netTxRate: 1 }),
     ];
 
-    const s = M.hostSummary(rows, "local");
+    const s = M.hostSummary(rows, "local", null);
 
-    assert.deepEqual(s, { running: 2, total: 3, cpu: 5, memUsed: 150, netRxRate: 10, netTxRate: 5, unhealthy: 1 });
+    assert.deepEqual(s, {
+        running: 2, total: 3, cpu: 5, memUsed: 150, netRxRate: 10, netTxRate: 5, unhealthy: 1,
+        cores: null, memTotal: null, cpuOfCores: null, memPercent: null,
+    });
+});
+
+test("hostSummary divides container cpu by the host's cores and memory by its total", () => {
+    const rows = [
+        Object.assign(ps({ id: "1" }), { cpu: 100, memUsed: 2 * 1024 ** 3 }),
+        Object.assign(ps({ id: "2" }), { cpu: 70, memUsed: 2 * 1024 ** 3 }),
+    ];
+
+    const s = M.hostSummary(rows, "local", { cores: 10, memTotal: 8 * 1024 ** 3 });
+
+    assert.equal(s.cores, 10);
+    assert.equal(s.memTotal, 8 * 1024 ** 3);
+    assert.equal(s.cpuOfCores, 17);
+    assert.equal(s.memPercent, 50);
 });
 
 test("actionTargets uses the visible selection when the clicked row is selected", () => {
@@ -225,4 +250,15 @@ test("displayedRows excludes rows of collapsed groups", () => {
     const shown = M.displayedRows(items);
 
     assert.deepEqual(shown.map((r) => r.name), ["x"]);
+});
+
+test("sortRows by uptime puts stopped containers after running ones when ascending", () => {
+    const rows = [ps({ id: "1", name: "run", upSec: 60 }), ps({ id: "2", name: "stopped", state: "exited", upSec: null }),
+        ps({ id: "3", name: "old", upSec: 9000 })];
+
+    const asc = M.sortRows(rows, "uptime", false).map(r => r.name);
+    const desc = M.sortRows(rows, "uptime", true).map(r => r.name);
+
+    assert.deepEqual(asc, ["run", "old", "stopped"]);
+    assert.deepEqual(desc, ["stopped", "old", "run"]);
 });

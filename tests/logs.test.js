@@ -133,3 +133,102 @@ test("formatLogLine keeps the compose container prefix when rendering JSON", () 
 
     assert.match(html, /shop-api-1 \| \{<span style="color:#5fafd7">&quot;level&quot;<\/span>/);
 });
+
+test("markup escapes text and turns http(s) URLs into links without trailing punctuation", () => {
+    const html = L.markup("see <https://example.com/a?b=1&c=2>. or (http://x.io/p).", "");
+
+    assert.equal(html,
+        "see &lt;<a href=\"https://example.com/a?b=1&amp;c=2\">https://example.com/a?b=1&amp;c=2</a>&gt;. or "
+        + "(<a href=\"http://x.io/p\">http://x.io/p</a>).");
+});
+
+test("markup links nothing but http and https", () => {
+    const html = L.markup("javascript:alert(1) file:///etc/passwd ftp://h/x", "");
+
+    assert.equal(html, "javascript:alert(1) file:///etc/passwd ftp://h/x");
+});
+
+test("markup highlights every case-insensitive match, also inside link text, and escapes the match", () => {
+    const html = L.markup("Error <b> error at https://err.io", "ERR");
+
+    const mark = (s) => "<span style=\"background-color:#d7af5f;color:#1c1c1c\">" + s + "</span>";
+    assert.equal(html, mark("Err") + "or &lt;b&gt; " + mark("err") + "or at <a href=\"https://err.io\">https://" + mark("err") + ".io</a>");
+});
+
+test("formatLogLine hides the time when timestamps are off and marks the current match strongly", () => {
+    const line = L.parseLogLines("2024-01-01T00:00:00Z disk full\n")[0];
+
+    const html = L.formatLogLine(line, () => "T", false, { timestamps: false, search: "full", current: true });
+
+    assert.equal(html, "<span style=\"white-space:pre-wrap\">disk <span style=\"background-color:#ff8700;color:#1c1c1c\">full</span></span>");
+});
+
+test("formatLogLine keeps today's output without options", () => {
+    const line = L.parseLogLines("2024-01-01T00:00:00Z a https://x.io\n")[0];
+
+    const html = L.formatLogLine(line, () => "T", false);
+
+    assert.equal(html, "<span style=\"color:#808080\">T</span> <span style=\"white-space:pre-wrap\">a <a href=\"https://x.io\">https://x.io</a></span>");
+});
+
+test("formatLogLine links and highlights inside JSON string values only", () => {
+    const line = L.parseLogLines("2024-01-01T00:00:00Z {\"url\":\"https://x.io\",\"n\":1}\n")[0];
+
+    const html = L.formatLogLine(line, () => "T", true, { timestamps: false, search: "" });
+
+    assert.ok(html.includes("<a href=\"https://x.io\">https://x.io</a>"));
+    assert.ok(!html.includes("<a href=\"https://x.io&quot;"));
+});
+
+test("matchLines returns indices of lines containing the needle, case-insensitively", () => {
+    const lines = L.parseLogLines("a\nERROR one\nok\nan error\n");
+
+    const results = [L.matchLines(lines, "error"), L.matchLines(lines, "")];
+
+    assert.deepEqual(results, [[1, 3], []]);
+});
+
+test("formatLogLine highlights matches in JSON keys, numbers and literals too", () => {
+    const line = L.parseLogLines("2024-01-01T00:00:00Z {\"level\":\"info\",\"code\":500,\"ok\":true}\n")[0];
+
+    const html = ["level", "500", "true"].map((s) => L.formatLogLine(line, () => "T", true, { timestamps: false, search: s }));
+
+    html.forEach((h) => assert.ok(h.includes("background-color:#d7af5f"), h));
+});
+
+test("URLs in JSON strings stop at escape sequences", () => {
+    const line = L.parseLogLines("2024-01-01T00:00:00Z {\"msg\":\"see https://x.io/a\\nnext\"}\n")[0];
+
+    const html = L.formatLogLine(line, () => "T", true, { timestamps: false, search: "" });
+
+    assert.ok(html.includes("<a href=\"https://x.io/a\">"), html);
+});
+
+test("markup highlights the right characters after one that grows when lowercased", () => {
+    const html = L.markup("İ error", "error");
+
+    assert.equal(html, "İ <span style=\"background-color:#d7af5f;color:#1c1c1c\">error</span>");
+});
+
+test("markup never matches inside escaped entities and highlights markup characters safely", () => {
+    const results = [L.markup("a & b", "amp"), L.markup("x<y", "<")];
+
+    assert.deepEqual(results, ["a &amp; b", "x<span style=\"background-color:#d7af5f;color:#1c1c1c\">&lt;</span>y"]);
+});
+
+test("formatLogLine links and highlights inside JSON arrays", () => {
+    const line = L.parseLogLines("2024-01-01T00:00:00Z {\"urls\":[\"https://x.io\"],\"tags\":[\"err\"]}\n")[0];
+
+    const html = L.formatLogLine(line, () => "T", true, { timestamps: false, search: "err" });
+
+    assert.ok(html.includes("<a href=\"https://x.io\">"), html);
+    assert.ok(html.includes("background-color:#d7af5f;color:#1c1c1c\">err</span>"), html);
+});
+
+test("formatLogLine highlights matches in the compose container prefix of JSON lines", () => {
+    const line = L.parseComposeLogLines("shop-api-1  | 2024-01-01T00:00:00Z {\"a\":1}\n")[0];
+
+    const html = L.formatLogLine(line, () => "T", true, { timestamps: false, search: "api" });
+
+    assert.ok(html.includes("shop-<span style=\"background-color:#d7af5f;color:#1c1c1c\">api</span>-1 | "), html);
+});
