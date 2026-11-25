@@ -103,6 +103,7 @@ ColumnLayout {
             delegate: MouseArea {
                 width: modelData.width * Kirigami.Units.gridUnit
                 height: headerLabel.implicitHeight + Kirigami.Units.smallSpacing * 2
+                enabled: modelData.sortable !== false
                 cursorShape: Qt.PointingHandCursor
                 onClicked: table.sortBy(modelData.id)
                 PlasmaComponents.Label {
@@ -112,7 +113,8 @@ ColumnLayout {
                     verticalAlignment: Text.AlignVCenter
                     elide: Text.ElideRight
                     font.bold: true
-                    text: modelData.title + (Plasmoid.configuration.sortKey === modelData.id
+                    text: (modelData.headerTitle !== undefined ? modelData.headerTitle : modelData.title)
+                          + (Plasmoid.configuration.sortKey === modelData.id
                                              ? (Plasmoid.configuration.sortDesc ? " ▼" : " ▲") : "")
                 }
             }

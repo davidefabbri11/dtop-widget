@@ -2,6 +2,8 @@ import QtQuick
 import org.kde.plasma.components as PlasmaComponents
 import org.kde.kirigami as Kirigami
 import "../code/format.js" as Format
+import "../code/logos.js" as Logos
+import "../code/logodata.js" as LogoData
 
 // One table row. `row` is a model.js Row; cells follow root.visibleColumns.
 Rectangle {
@@ -43,6 +45,10 @@ Rectangle {
                                                    && rowItem.row.state === "running"
                 readonly property bool barCell: metricCell && !root.compactTable
                 readonly property var percent: modelData.id === "cpu" ? rowItem.row.cpu : Format.memPercent(rowItem.row)
+                // App logo (bundled from dtop); "" when the image has none.
+                readonly property string logo: modelData.id === "logo"
+                    ? (Logos.logoForImage(rowItem.row.image, Kirigami.Theme.backgroundColor.hslLightness > 0.5, LogoData) || "")
+                    : ""
 
                 PlasmaComponents.Label {
                     visible: modelData.id === "status"
@@ -59,8 +65,18 @@ Rectangle {
                     width: Kirigami.Units.gridUnit * 4
                     percent: cell.percent
                 }
+                Image {
+                    visible: cell.logo !== ""
+                    anchors.centerIn: parent
+                    width: Kirigami.Units.iconSizes.small
+                    height: width
+                    sourceSize.width: 32
+                    sourceSize.height: 32
+                    asynchronous: true
+                    source: cell.logo ? "../images/app-logos/" + cell.logo + ".png" : ""
+                }
                 PlasmaComponents.Label {
-                    visible: modelData.id !== "status"
+                    visible: modelData.id !== "status" && modelData.id !== "logo"
                     anchors.fill: parent
                     anchors.leftMargin: cell.barCell ? cellBar.width + Kirigami.Units.smallSpacing * 2 : Kirigami.Units.smallSpacing
                     color: cell.metricCell ? rowItem.toneColor(Format.level(cell.percent)) : Kirigami.Theme.textColor

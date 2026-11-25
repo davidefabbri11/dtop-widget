@@ -19,6 +19,8 @@ PlasmoidItem {
     readonly property var allColumns: [
         { id: "id", title: "ID", width: 6 },
         { id: "status", title: "Status", width: 2 },
+        // App logo; no header text and not sortable.
+        { id: "logo", title: "Logo", width: 1.5, headerTitle: "", sortable: false },
         { id: "name", title: "Name", width: 12 },
         { id: "host", title: "Host", width: 5 },
         { id: "compose", title: "Compose", width: 7 },
