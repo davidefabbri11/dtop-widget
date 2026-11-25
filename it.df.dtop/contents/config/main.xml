@@ -26,6 +26,9 @@
     <entry name="statsHeader" type="Bool">
       <default>true</default>
     </entry>
+    <entry name="logTimestamps" type="Bool">
+      <default>true</default>
+    </entry>
     <entry name="logTail" type="Int">
       <default>1000</default>
     </entry>

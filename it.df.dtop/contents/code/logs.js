@@ -2,7 +2,11 @@
 // No Qt/QML APIs — runs in QML and Node.
 
 var TS_RE = /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?(Z|[+-]\d\d:\d\d)) (.*)$/;
-var COLOR = { key: "#5fafd7", string: "#87af5f", number: "#d7af5f", literal: "#af87d7", time: "#808080" };
+var COLOR = { key: "#5fafd7", string: "#87af5f", number: "#d7af5f", literal: "#af87d7", time: "#808080",
+              match: "#d7af5f", current: "#ff8700", matchText: "#1c1c1c" };
+// No backslash: inside JSON-encoded strings it starts an escape (\n, \", \u...), never part of the URL.
+var URL_RE = /https?:\/\/[^\s<>"'`\\]+/g;
+var URL_TRAILING_RE = /[.,;:!?)\]}'"]+$/;
 
 function escapeHtml(s) {
     return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -33,26 +37,76 @@ function span(color, html) {
     return "<span style=\"color:" + color + "\">" + html + "</span>";
 }
 
+// Escaped `s` with every case-insensitive occurrence of `needle` highlighted.
+function highlight(s, needle, current) {
+    if (!needle) return escapeHtml(s);
+    var lower = s.toLowerCase();
+    var n = needle.toLowerCase();
+    var out = "";
+    var from = 0;
+    var i;
+    while ((i = lower.indexOf(n, from)) >= 0) {
+        out += escapeHtml(s.substring(from, i))
+            + "<span style=\"background-color:" + (current ? COLOR.current : COLOR.match) + ";color:" + COLOR.matchText + "\">"
+            + escapeHtml(s.substring(i, i + n.length)) + "</span>";
+        from = i + n.length;
+    }
+    return out + escapeHtml(s.substring(from));
+}
+
+// Plain text to rich text: escaped, http(s) URLs as links, matches of `needle` highlighted
+// (per segment, so a match spanning a URL boundary is not highlighted).
+function markup(text, needle, current) {
+    var s = String(text);
+    var out = "";
+    var last = 0;
+    var m;
+    URL_RE.lastIndex = 0;
+    while ((m = URL_RE.exec(s)) !== null) {
+        var url = m[0].replace(URL_TRAILING_RE, "");
+        out += highlight(s.substring(last, m.index), needle, current)
+            + "<a href=\"" + escapeHtml(url) + "\">" + highlight(url, needle, current) + "</a>";
+        last = m.index + url.length;
+        URL_RE.lastIndex = last;
+    }
+    return out + highlight(s.substring(last), needle, current);
+}
+
+// Indices of lines whose raw text contains `needle`, case-insensitively.
+function matchLines(lines, needle) {
+    if (!needle) return [];
+    var n = needle.toLowerCase();
+    var found = [];
+    lines.forEach(function (l, i) { if (l.text.toLowerCase().indexOf(n) >= 0) found.push(i); });
+    return found;
+}
+
 // pretty=true renders indented multi-line rich text (details view); otherwise one line.
-function renderJson(value, pretty, depth) {
+// `mark` = { needle, current } links URLs and highlights matches inside string values.
+function renderJson(value, pretty, depth, mark) {
     depth = depth || 0;
     var nl = pretty ? "<br>" : "";
     var pad = function (d) { return pretty ? new Array(d + 1).join("&nbsp;&nbsp;") : ""; };
     var sep = pretty ? ", " : ",";
-    if (value === null || typeof value === "boolean") return span(COLOR.literal, String(value));
-    if (typeof value === "number") return span(COLOR.number, String(value));
-    if (typeof value === "string") return span(COLOR.string, escapeHtml(JSON.stringify(value)));
+    var text = function (t) { return mark ? highlight(t, mark.needle, mark.current) : escapeHtml(t); };
+    if (value === null || typeof value === "boolean") return span(COLOR.literal, text(String(value)));
+    if (typeof value === "number") return span(COLOR.number, text(String(value)));
+    if (typeof value === "string") {
+        if (!mark) return span(COLOR.string, escapeHtml(JSON.stringify(value)));
+        var inner = JSON.stringify(value);
+        return span(COLOR.string, "&quot;" + markup(inner.substring(1, inner.length - 1), mark.needle, mark.current) + "&quot;");
+    }
     if (Array.isArray(value)) {
         if (value.length === 0) return "[]";
         return "[" + nl + value.map(function (v) {
-            return pad(depth + 1) + renderJson(v, pretty, depth + 1);
+            return pad(depth + 1) + renderJson(v, pretty, depth + 1, mark);
         }).join(sep.trim() + nl) + nl + pad(depth) + "]";
     }
     var keys = Object.keys(value);
     if (keys.length === 0) return "{}";
     return "{" + nl + keys.map(function (k) {
-        return pad(depth + 1) + span(COLOR.key, escapeHtml(JSON.stringify(k))) + ":" + (pretty ? " " : "")
-            + renderJson(value[k], pretty, depth + 1);
+        return pad(depth + 1) + span(COLOR.key, text(JSON.stringify(k))) + ":" + (pretty ? " " : "")
+            + renderJson(value[k], pretty, depth + 1, mark);
     }).join(sep.trim() + nl) + nl + pad(depth) + "}";
 }
 
@@ -62,12 +116,17 @@ function asRichText(s) {
     return "<span style=\"white-space:pre-wrap\">" + escapeHtml(s) + "</span>";
 }
 
-function formatLogLine(line, localTime, jsonMode) {
-    var time = line.ts ? span(COLOR.time, escapeHtml(localTime(line.tsMs))) + " " : "";
+// opts = { timestamps (default true), search, current (this line holds the current match) }.
+function formatLogLine(line, localTime, jsonMode, opts) {
+    opts = opts || {};
+    var needle = opts.search || "";
+    var current = !!opts.current;
+    var time = line.ts && opts.timestamps !== false ? span(COLOR.time, escapeHtml(localTime(line.tsMs))) + " " : "";
     // Compose lines keep their container prefix in front of rendered JSON.
     var body = jsonMode && line.json !== null
-        ? (line.prefix ? escapeHtml(line.prefix) + " | " : "") + renderJson(line.json, false)
-        : escapeHtml(line.text);
+        ? (line.prefix ? highlight(line.prefix, needle, current) + " | " : "")
+          + renderJson(line.json, false, 0, { needle: needle, current: current })
+        : markup(line.text, needle, current);
     // pre-wrap keeps indentation (stack traces, aligned output) that rich text would collapse.
     return time + "<span style=\"white-space:pre-wrap\">" + body + "</span>";
 }
@@ -132,6 +191,8 @@ if (typeof module !== "undefined" && module.exports) {
         escapeHtml: escapeHtml,
         parseLogLines: parseLogLines,
         renderJson: renderJson,
-        formatLogLine: formatLogLine
+        formatLogLine: formatLogLine,
+        markup: markup,
+        matchLines: matchLines
     };
 }

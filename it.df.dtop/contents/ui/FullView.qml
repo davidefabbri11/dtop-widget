@@ -154,9 +154,9 @@ PlasmaExtras.Representation {
                     maximized: full.logsMode === "max"
                     QQC2.SplitView.fillWidth: full.logsMode === "max"
                     // Shrinks in a popup the user made narrow, so the table keeps its 16 grid units.
-                    QQC2.SplitView.preferredWidth: Math.max(Kirigami.Units.gridUnit * 16,
+                    QQC2.SplitView.preferredWidth: Math.max(Kirigami.Units.gridUnit * 20,
                         Math.min(Kirigami.Units.gridUnit * 24, parent.width - Kirigami.Units.gridUnit * 16))
-                    QQC2.SplitView.minimumWidth: Kirigami.Units.gridUnit * 16
+                    QQC2.SplitView.minimumWidth: Kirigami.Units.gridUnit * 20  // room for 7 toolbar buttons and the title
                     onCloseRequested: full.closeLogs()
                     onMaximizeToggled: {
                         full.logsMode = full.logsMode === "max" ? "side" : "max";
