@@ -142,6 +142,8 @@ SSH hosts must work non-interactively (key auth / agent); a host that hangs time
     Only for `local` and `ssh://` hosts; on `ssh://` hosts it runs `ssh … cat /proc/…` over one connection reused for 60 s (`$XDG_RUNTIME_DIR/dtop-ssh-*`), never asking for a password.
   - **Docker**: the containers' total CPU "of N cores", memory used out of Docker's total (from `docker info`), and `running N/M`.
   - Bars and values turn amber from 50 % and red from 80 %.
+- Table: CPU and Memory cells show a bar (memory against the container's limit, or the host's total when unlimited) with the same colours.
+  Status symbols: ✓ healthy, ▶ running (amber while the healthcheck is starting), ✖ unhealthy or dead, ■ exited, ‖ paused, ↻ restarting, ○ created.
 - Mouse: click, Ctrl-click, Shift-click to select; right-click for the action menu; double-click for logs.
 - Keyboard: Up/Down or j/k, PageUp/PageDown, Home/End; Enter opens the action menu; Right arrow opens logs; Esc/Left goes back.
 - Action menu: Logs, Details (`docker inspect`), Start, Stop, Restart, Remove (with confirmation), Open shell (in the configured terminal), Open in Dozzle, Select compose project.
