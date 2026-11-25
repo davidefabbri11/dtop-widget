@@ -6,9 +6,9 @@ It drives the `docker` CLI, so anything `docker -H …` can reach works.
 
 ![Grouped by Compose project](screenshots/dtop-grouped-show-all.png)
 
-| Flat view | Project logs |
+| Flat view | Log panel with search |
 |---|---|
-| ![Flat view](screenshots/dtop-flat.png) | ![Project logs](screenshots/dtop-project-logs.png) |
+| ![Flat view](screenshots/dtop-flat.png) | ![Log panel with search](screenshots/dtop-log-panel.png) |
 
 *Screenshots use demo data.*
 
