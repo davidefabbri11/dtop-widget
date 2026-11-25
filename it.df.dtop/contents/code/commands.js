@@ -175,6 +175,31 @@ function composeCommand(host, action, project, fileSet) {
         + shQuote(t.dest) + " " + shQuote(remote);
 }
 
+// ----- host stats (System row of the header) -----
+
+var PROC_FILES = "/proc/stat /proc/meminfo /proc/loadavg /proc/uptime /proc/net/dev";
+// One master connection per host, reused by every poll for 60 s after the last one.
+var SSH_POOL_OPTS = "-o BatchMode=yes -o ControlMaster=auto -o ControlPath=\"$XDG_RUNTIME_DIR/dtop-ssh-%C\" -o ControlPersist=60";
+
+// Machine stats need a shell on the Docker host: null for tcp://, tls:// and unix:// endpoints.
+function systemStatsCommand(host, timeoutSec) {
+    var base = "timeout " + timeoutSec + " ";
+    if (host.endpoint === "local") return base + "cat " + PROC_FILES;
+    if (host.endpoint.indexOf("ssh://") !== 0) return null;
+    var t = sshTarget(host.endpoint);
+    return base + "env SSH_ASKPASS_REQUIRE=never ssh " + SSH_POOL_OPTS + " "
+        + (t.port ? "-p " + shQuote(t.port) + " " : "") + shQuote(t.dest) + " cat " + PROC_FILES;
+}
+
+function dockerInfoCommand(host, timeoutSec) {
+    return "timeout " + timeoutSec + " " + dockerBase(host) + " info --format '{{.NCPU}} {{.MemTotal}}'";
+}
+
+function parseDockerInfo(stdout) {
+    var m = /^\s*(\d+)\s+(\d+)\s*$/.exec(String(stdout || ""));
+    return m ? { cores: parseInt(m[1], 10), memTotal: parseInt(m[2], 10) } : null;
+}
+
 // Error text for a failed compose command. Without the Compose plugin, docker parses `compose -p`
 // itself ("unknown shorthand flag: 'p'"); exit 127 means docker (or ssh, for ssh:// hosts) is missing.
 function composeError(stdout, stderr, code) {
@@ -224,6 +249,10 @@ if (typeof module !== "undefined" && module.exports) {
         composeUnavailable: composeUnavailable,
         composeCommand: composeCommand,
         composeError: composeError,
-        composeLogsCommand: composeLogsCommand
+        composeLogsCommand: composeLogsCommand,
+        PROC_FILES: PROC_FILES,
+        systemStatsCommand: systemStatsCommand,
+        dockerInfoCommand: dockerInfoCommand,
+        parseDockerInfo: parseDockerInfo
     };
 }

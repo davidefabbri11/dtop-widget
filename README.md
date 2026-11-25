@@ -23,7 +23,7 @@ It drives the `docker` CLI, so anything `docker -H …` can reach works.
 | Docker CLI (`docker`) | everything: the widget runs `docker ps`, `stats`, `logs`, … | Docker 29.9.3 |
 | Permission to use Docker without `sudo` (user in the `docker` group, or rootless Docker) | local hosts; the widget cannot ask for a password | |
 | Docker Compose v2 plugin (`docker compose`) | only the Group view's project actions and project logs | Compose v5.7.0 |
-| `ssh` client with key-based login | only `ssh://` hosts | OpenSSH |
+| `ssh` client with key-based login | only `ssh://` hosts (Docker access and the System stats row) | OpenSSH |
 | A terminal, `konsole` by default | only "Open shell" (configurable in Settings) | |
 | Node.js 24 | only running the tests | Node 24.17 |
 
@@ -136,7 +136,12 @@ SSH hosts must work non-interactively (key auth / agent); a host that hangs time
 ## Using it
 
 - Panel: icon + `running/total`; a red dot means an unreachable host or an unhealthy container.
-- Popup: search field, per-host summary, sortable table.
+- Popup: search field, per-host stats header, sortable table.
+- Stats header (toggle: Settings → Host stats header), two rows per host while the popup is open:
+  - **System**: the machine's CPU and memory (with bars), TX/RX, swap, load average and uptime, read from `/proc`.
+    Only for `local` and `ssh://` hosts; on `ssh://` hosts it runs `ssh … cat /proc/…` over one connection reused for 60 s (`$XDG_RUNTIME_DIR/dtop-ssh-*`), never asking for a password.
+  - **Docker**: the containers' total CPU "of N cores", memory used out of Docker's total (from `docker info`), and `running N/M`.
+  - Bars and values turn amber from 50 % and red from 80 %.
 - Mouse: click, Ctrl-click, Shift-click to select; right-click for the action menu; double-click for logs.
 - Keyboard: Up/Down or j/k, PageUp/PageDown, Home/End; Enter opens the action menu; Right arrow opens logs; Esc/Left goes back.
 - Action menu: Logs, Details (`docker inspect`), Start, Stop, Restart, Remove (with confirmation), Open shell (in the configured terminal), Open in Dozzle, Select compose project.

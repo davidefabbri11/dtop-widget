@@ -1,0 +1,29 @@
+cpu  1000 50 400 8000 200 30 20 0 0 0
+cpu0 500 25 200 4000 100 15 10 0 0 0
+cpu1 500 25 200 4000 100 15 10 0 0 0
+intr 123456 0 0
+ctxt 987654
+btime 1700000000
+processes 4242
+procs_running 2
+procs_blocked 0
+MemTotal:       32768000 kB
+MemFree:         2048000 kB
+MemAvailable:    8192000 kB
+Buffers:          512000 kB
+Cached:          4096000 kB
+SwapCached:        10000 kB
+SwapTotal:       4194304 kB
+SwapFree:        2936012 kB
+HugePages_Total:       5
+HugePages_Free:        5
+2.84 2.61 2.40 3/1234 56789
+725400.12 5000000.34
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo: 9999999    1000    0    0    0     0          0         0  9999999    1000    0    0    0     0       0          0
+  eth0: 1000000    2000    0    0    0     0          0         0   400000    1500    0    0    0     0       0          0
+ wlan0:  500000     800    0    0    0     0          0         0   100000     600    0    0    0     0       0          0
+docker0: 777777     100    0    0    0     0          0         0   777777     100    0    0    0     0       0          0
+veth1a2b: 333333    100    0    0    0     0          0         0   333333     100    0    0    0     0       0          0
+br-abc123: 222222   100    0    0    0     0          0         0   222222     100    0    0    0     0       0          0

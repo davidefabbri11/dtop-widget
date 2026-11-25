@@ -92,7 +92,8 @@ function filterRows(rows, opts) {
     });
 }
 
-function hostSummary(rows, hostName) {
+// `info` is the host's `docker info` ({ cores, memTotal }) or null while unknown.
+function hostSummary(rows, hostName, info) {
     var s = { running: 0, total: 0, cpu: 0, memUsed: 0, netRxRate: 0, netTxRate: 0, unhealthy: 0 };
     rows.forEach(function (r) {
         if (r.host !== hostName) return;
@@ -104,6 +105,10 @@ function hostSummary(rows, hostName) {
         s.netRxRate += r.netRxRate || 0;
         s.netTxRate += r.netTxRate || 0;
     });
+    s.cores = info ? info.cores : null;
+    s.memTotal = info ? info.memTotal : null;
+    s.cpuOfCores = info && info.cores > 0 ? s.cpu / info.cores : null;
+    s.memPercent = info && info.memTotal > 0 ? 100 * s.memUsed / info.memTotal : null;
     return s;
 }
 

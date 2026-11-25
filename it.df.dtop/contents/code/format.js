@@ -27,6 +27,40 @@ function formatUptime(row) {
     return String(row.status || "").replace(/^Up\s+/, "");
 }
 
+// Colour band of a usage percentage, shared by the header bars and the table.
+function level(percent) {
+    if (percent === null || percent === undefined) return "";
+    if (percent >= 80) return "high";
+    if (percent >= 50) return "warn";
+    return "ok";
+}
+
+var COMPACT_UNITS = ["B", "K", "M", "G", "T"];
+
+// dtop-style sizes for the header: "512M", "25.5G", "32G".
+function formatCompactBytes(n) {
+    if (n === null || n === undefined) return "—";
+    var i = 0;
+    var v = n;
+    while (v >= 1024 && i < COMPACT_UNITS.length - 1) { v /= 1024; i++; }
+    return String(Math.round(v * 10) / 10) + COMPACT_UNITS[i];
+}
+
+function formatHostUptime(sec) {
+    if (sec === null || sec === undefined) return "—";
+    var m = Math.floor(sec / 60);
+    var h = Math.floor(m / 60);
+    var d = Math.floor(h / 24);
+    if (d > 0) return d + "d " + (h % 24) + "h";
+    if (h > 0) return h + "h " + (m % 60) + "m";
+    return m + "m";
+}
+
+function formatLoad(load) {
+    if (!load) return "—";
+    return load.map(function (l) { return l.toFixed(2); }).join(" ");
+}
+
 var METRIC_COLUMNS = { pids: true, cpu: true, memory: true, net_tx: true, net_rx: true, io_read: true, io_write: true };
 
 function formatCell(row, colId) {
@@ -59,6 +93,10 @@ if (typeof module !== "undefined" && module.exports) {
         formatRate: formatRate,
         formatPercent: formatPercent,
         formatMem: formatMem,
-        formatUptime: formatUptime
+        formatUptime: formatUptime,
+        level: level,
+        formatCompactBytes: formatCompactBytes,
+        formatHostUptime: formatHostUptime,
+        formatLoad: formatLoad
     };
 }

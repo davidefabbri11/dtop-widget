@@ -49,3 +49,27 @@ test("formatCell blanks metrics for stopped containers", () => {
 
     assert.deepEqual(cells, ["", "", "", ""]);
 });
+
+test("level maps a percentage to ok / warn / high, empty when unknown", () => {
+    const levels = [0, 49.9, 50, 79.9, 80, 250, null].map(F.level);
+
+    assert.deepEqual(levels, ["ok", "ok", "warn", "warn", "high", "high", ""]);
+});
+
+test("formatCompactBytes uses one-letter binary units and drops a trailing .0", () => {
+    const values = [0, 512 * 1024 ** 2, 25.5 * 1024 ** 3, 32 * 1024 ** 3, null].map(F.formatCompactBytes);
+
+    assert.deepEqual(values, ["0B", "512M", "25.5G", "32G", "—"]);
+});
+
+test("formatHostUptime shows the two largest units", () => {
+    const values = [2400, 32700, 724500, null].map(F.formatHostUptime);
+
+    assert.deepEqual(values, ["40m", "9h 5m", "8d 9h", "—"]);
+});
+
+test("formatLoad shows three two-decimal averages, a dash when unknown", () => {
+    const values = [F.formatLoad([2.84, 2.61, 2.4]), F.formatLoad(null)];
+
+    assert.deepEqual(values, ["2.84 2.61 2.40", "—"]);
+});

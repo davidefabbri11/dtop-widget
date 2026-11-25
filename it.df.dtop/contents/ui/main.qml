@@ -5,6 +5,7 @@ import "../code/hosts.js" as Hosts
 import "../code/parse.js" as Parse
 import "../code/model.js" as Model
 import "../code/commands.js" as Cmd
+import "../code/sysstats.js" as Sys
 
 PlasmoidItem {
     id: root
@@ -44,6 +45,10 @@ PlasmoidItem {
     property int configEpoch: 0         // bumped when hosts change; stale callbacks bail
     property var inFlight: ({})         // { hostName: true }
     property var restartCounts: ({})    // { hostName: { id: count } }
+    property var dockerInfo: ({})       // { hostName: { cores, memTotal } }, fetched once per host
+    property var systemStats: ({})      // { hostName: { status: "ok"|"error", error, sample } }; absent = no System row
+    property var inFlightSys: ({})      // { hostName: true }
+    property var inFlightInfo: ({})     // { hostName: true }
 
     readonly property var visibleRows: Model.sortRows(
         Model.filterRows(rows, { showAll: cfg.showAll, search: searchText }), cfg.sortKey, cfg.sortDesc)
@@ -55,7 +60,7 @@ PlasmoidItem {
         : visibleRows.map(function (r) { return { type: "row", row: r }; })
     // Rows actually on screen (collapsed groups excluded): the only rows actions may target.
     readonly property var displayedRows: Model.displayedRows(tableItems)
-    readonly property var summaries: hosts.map(function (h) { return Model.hostSummary(rows, h.name); })
+    readonly property var summaries: hosts.map(function (h) { return Model.hostSummary(rows, h.name, dockerInfo[h.name] || null); })
     readonly property int runningCount: summaries.reduce(function (a, s) { return a + s.running; }, 0)
     readonly property int totalCount: summaries.reduce(function (a, s) { return a + s.total; }, 0)
     readonly property int unhealthyCount: summaries.reduce(function (a, s) { return a + s.unhealthy; }, 0)
@@ -103,6 +108,7 @@ PlasmoidItem {
         var epoch = configEpoch;
         var withStats = root.expanded;
         var timeoutSec = refreshSeconds * 5;
+        if (withStats) pollSystem(h, timeoutSec);
         run(Cmd.pollCommand(h, timeoutSec, withStats), function (out, err, code) {
             if (epoch !== configEpoch) return;
             inFlight[h.name] = false;
@@ -116,7 +122,47 @@ PlasmoidItem {
             var merged = Model.mergeSnapshot(prev, ps, Parse.parseStats(parts.stats), Date.now(), restartCounts[h.name] || {});
             rows = rows.filter(function (r) { return r.host !== h.name; }).concat(merged);
             setHostState(h.name, { status: "ok", error: "", lastMs: Date.now() });
+            if (!dockerInfo[h.name]) fetchDockerInfo(h, epoch, timeoutSec);
             if (withStats && cfg.columns.indexOf("restarts") >= 0 && ps.length > 0) fetchRestartCounts(h, ps, epoch);
+        });
+    }
+
+    // System row: the machine's own /proc, only where we have a shell (local, ssh://).
+    function pollSystem(h, timeoutSec) {
+        var cmd = Cmd.systemStatsCommand(h, timeoutSec);
+        if (!cmd || inFlightSys[h.name]) return;
+        inFlightSys[h.name] = true;
+        var epoch = configEpoch;
+        run(cmd, function (out, err, code) {
+            if (epoch !== configEpoch) return;
+            inFlightSys[h.name] = false;
+            var prev = systemStats[h.name] ? systemStats[h.name].sample : null;
+            var entry;
+            if (code === 0) {
+                entry = { status: "ok", error: "", sample: Sys.systemSample(prev, Sys.parseProc(out), Date.now()) };
+            } else {
+                var error = code === 127 && h.endpoint.indexOf("ssh://") === 0
+                    ? "ssh not found: install an OpenSSH client"
+                    : Cmd.pollError(err, code, timeoutSec);
+                entry = { status: "error", error: error, sample: prev };
+            }
+            var all = Object.assign({}, systemStats);
+            all[h.name] = entry;
+            systemStats = all;
+        });
+    }
+
+    function fetchDockerInfo(h, epoch, timeoutSec) {
+        if (inFlightInfo[h.name]) return;
+        inFlightInfo[h.name] = true;
+        run(Cmd.dockerInfoCommand(h, timeoutSec), function (out) {
+            if (epoch !== configEpoch) return;
+            inFlightInfo[h.name] = false;
+            var info = Cmd.parseDockerInfo(out);
+            if (!info) return;
+            var all = Object.assign({}, dockerInfo);
+            all[h.name] = info;
+            dockerInfo = all;
         });
     }
 
@@ -134,6 +180,10 @@ PlasmoidItem {
     function resetForHosts() {
         configEpoch++;
         inFlight = ({});
+        inFlightSys = ({});
+        inFlightInfo = ({});
+        dockerInfo = ({});
+        systemStats = ({});
         var names = hosts.map(function (h) { return h.name; });
         rows = rows.filter(function (r) { return names.indexOf(r.host) >= 0; });
         var s = {};
