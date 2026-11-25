@@ -153,7 +153,7 @@ SSH hosts must work non-interactively (key auth / agent); a host that hangs time
   Maximize hides the table; Close closes the panel; Esc closes it, or restores it when maximized.
   Last N lines (Settings → Log lines per page), "Load older" pages backwards, Follow appends new lines, JSON toggle colourises JSON log lines.
   Timestamps toggle hides the time column (remembered).
-  Search (toolbar, Ctrl+F or `/`): highlights every match, the counter shows `n/N`, Enter / Shift+Enter jump to the next / previous match, Esc closes it.
+  Search (toolbar or `/`; Ctrl+F stays the popup's container search): highlights every match, the counter shows `n/N`, Enter / Shift+Enter jump to the next / previous match, Esc closes it.
   `http(s)://` URLs are links that open in the browser.
 - Group (toolbar): groups the table by Compose project (`com.docker.compose.project`), one collapsible header per host and project; containers without a project go under "No compose project".
   Header: status (`running N/M` counts all of the project's containers), CPU/memory, and ▶ Start, ■ Stop, ⟳ Restart, ⋯ (or right-click) for the project menu: Start, Up (apply changes), Stop, Restart, Pause, Unpause, Pull images, Build, Recreate, Project logs, Select all containers, Down… (confirmation, optional `-v`).

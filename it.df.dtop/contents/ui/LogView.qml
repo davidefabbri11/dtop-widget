@@ -212,7 +212,7 @@ ColumnLayout {
         }
         PlasmaComponents.ToolButton {
             icon.name: "edit-find"
-            text: "Search (Ctrl+F)"
+            text: "Search (/)"
             display: PlasmaComponents.AbstractButton.IconOnly
             checkable: true
             checked: logView.searchOpen
@@ -317,10 +317,6 @@ ColumnLayout {
                 case Qt.Key_End: list.positionViewAtEnd(); break;
                 case Qt.Key_Left: if (logView.maximized) logView.maximizeToggled(); else logView.leave(); break;
                 case Qt.Key_Slash: logView.openSearch(); break;
-                case Qt.Key_F:
-                    if (!(event.modifiers & Qt.ControlModifier)) return;
-                    logView.openSearch();
-                    break;
                 default: return;
                 }
                 event.accepted = true;
