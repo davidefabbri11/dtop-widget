@@ -177,6 +177,7 @@ npm run package   # builds it.df.dtop.plasmoid (metadata.json at the archive roo
 ```
 
 Bump `KPlugin.Version` in `it.df.dtop/metadata.json` (and `version` in `package.json`) before building.
+Screenshots: `scripts/demo/shot.py` runs the widget with demo data (fake `docker`/`ssh` from `scripts/demo/fake.py`) on its own Xwayland display; its docstring lists the commands for the README images.
 Install the file locally with `kpackagetool6 -t Plasma/Applet -i it.df.dtop.plasmoid`, or upload it to the KDE Store under **Plasma 6 Applets**, tagged `ai-generated`.
 
 ## License
