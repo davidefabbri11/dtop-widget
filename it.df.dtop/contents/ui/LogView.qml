@@ -17,7 +17,10 @@ ColumnLayout {
     property bool noOlder: false
     property string error: ""
     property int epoch: 0
-    signal back()
+    property bool maximized: false  // true: the table is hidden and the logs take the whole popup
+    signal closeRequested()
+    signal maximizeToggled()
+    signal leave()                  // hand keyboard focus back to the table, panel stays open
 
     readonly property int tail: Math.max(1, Plasmoid.configuration.logTail)
 
@@ -82,7 +85,7 @@ ColumnLayout {
     }
 
     onJsonModeChanged: rerender()
-    Keys.onEscapePressed: back()
+    Keys.onEscapePressed: maximized ? maximizeToggled() : closeRequested()
 
     ListModel { id: logModel }
 
@@ -98,11 +101,6 @@ ColumnLayout {
 
     RowLayout {
         Layout.fillWidth: true
-        PlasmaComponents.ToolButton {
-            icon.name: "go-previous"
-            text: "Back"
-            onClicked: logView.back()
-        }
         PlasmaComponents.Label {
             Layout.fillWidth: true
             text: logView.row ? logView.row.name + " — logs (" + logView.lines.length + " lines)" : ""
@@ -118,12 +116,16 @@ ColumnLayout {
         PlasmaComponents.ToolButton {
             icon.name: "go-up"
             text: "Load older"
+            display: logView.maximized ? PlasmaComponents.AbstractButton.TextBesideIcon : PlasmaComponents.AbstractButton.IconOnly
+            PlasmaComponents.ToolTip.text: text
             enabled: !logView.noOlder && logView.lines.length > 0 && !logView.loading
             onClicked: logView.loadOlder()
         }
         PlasmaComponents.ToolButton {
             icon.name: "code-context"
             text: "JSON"
+            display: logView.maximized ? PlasmaComponents.AbstractButton.TextBesideIcon : PlasmaComponents.AbstractButton.IconOnly
+            PlasmaComponents.ToolTip.text: text
             checkable: true
             checked: logView.jsonMode
             onToggled: logView.jsonMode = checked
@@ -131,9 +133,25 @@ ColumnLayout {
         PlasmaComponents.ToolButton {
             icon.name: "go-bottom"
             text: "Follow"
+            display: logView.maximized ? PlasmaComponents.AbstractButton.TextBesideIcon : PlasmaComponents.AbstractButton.IconOnly
+            PlasmaComponents.ToolTip.text: text
             checkable: true
             checked: logView.follow
             onToggled: { logView.follow = checked; if (checked) list.positionViewAtEnd(); }
+        }
+        PlasmaComponents.ToolButton {
+            icon.name: logView.maximized ? "view-restore" : "view-fullscreen"
+            display: PlasmaComponents.AbstractButton.IconOnly
+            text: logView.maximized ? "Restore" : "Maximize"
+            onClicked: logView.maximizeToggled()
+            PlasmaComponents.ToolTip.text: text
+        }
+        PlasmaComponents.ToolButton {
+            icon.name: "window-close"
+            display: PlasmaComponents.AbstractButton.IconOnly
+            text: "Close logs"
+            onClicked: logView.closeRequested()
+            PlasmaComponents.ToolTip.text: text
         }
     }
 
@@ -172,7 +190,7 @@ ColumnLayout {
                 case Qt.Key_PageUp: list.contentY = Math.max(0, list.contentY - list.height); break;
                 case Qt.Key_Home: list.positionViewAtBeginning(); break;
                 case Qt.Key_End: list.positionViewAtEnd(); break;
-                case Qt.Key_Left: logView.back(); break;
+                case Qt.Key_Left: if (logView.maximized) logView.maximizeToggled(); else logView.leave(); break;
                 default: return;
                 }
                 event.accepted = true;

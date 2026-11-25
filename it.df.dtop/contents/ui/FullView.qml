@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls as QQC2
 import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PlasmaComponents
 import org.kde.plasma.extras as PlasmaExtras
@@ -12,6 +13,11 @@ PlasmaExtras.Representation {
                                          * Kirigami.Units.gridUnit
     Layout.minimumWidth: Kirigami.Units.gridUnit * 30
     Layout.preferredWidth: Math.max(Layout.minimumWidth, columnsWidth + Kirigami.Units.gridUnit * 2)
+                           + (logsMode === "side" ? Kirigami.Units.gridUnit * 24 : 0)
+
+    property string logsMode: "closed"     // "closed" | "side" (beside the table) | "max" (table hidden)
+    property string shownKey: ""           // row key in the log panel; "" for project logs
+    Binding { target: root; property: "compactTable"; value: full.logsMode === "side" }
     Layout.minimumHeight: Kirigami.Units.gridUnit * 16
     Layout.preferredHeight: Kirigami.Units.gridUnit * 28
     collapseMarginsHint: true
@@ -114,19 +120,49 @@ PlasmaExtras.Representation {
             id: pages
             Layout.fillWidth: true
             Layout.fillHeight: true
-            currentIndex: 0     // 0 table, 1 details, 2 logs
+            currentIndex: 0     // 0 table (+ log panel), 1 details
 
-            ContainerTable {
-                id: table
-                onMenuRequested: function (row, item, x, y) {
-                    actionMenu.row = row;
-                    actionMenu.targets = table.targetRows(row);
-                    actionMenu.popup(item, x, y);
+            QQC2.SplitView {
+                orientation: Qt.Horizontal
+
+                ContainerTable {
+                    id: table
+                    visible: full.logsMode !== "max"
+                    clip: true      // the column header row is as wide as all columns
+                    QQC2.SplitView.fillWidth: true
+                    QQC2.SplitView.minimumWidth: Kirigami.Units.gridUnit * 16
+                    onMenuRequested: function (row, item, x, y) {
+                        actionMenu.row = row;
+                        actionMenu.targets = table.targetRows(row);
+                        actionMenu.popup(item, x, y);
+                    }
+                    onLogsRequested: function (row) { full.showLogs(row); }
+                    onProjectMenuRequested: function (group, item, x, y) {
+                        projectMenu.group = group;
+                        projectMenu.popup(item, x, y);
+                    }
+                    logsOpen: full.logsMode !== "closed"
+                    onCloseLogsRequested: full.closeLogs()
+                    // While the panel is open the logs follow the current row once it stops moving.
+                    // currentKey (not currentRow) so the per-poll row refresh never counts as a move.
+                    onCurrentKeyChanged: if (full.logsMode !== "closed") followTimer.restart()
                 }
-                onLogsRequested: function (row) { full.showLogs(row); }
-                onProjectMenuRequested: function (group, item, x, y) {
-                    projectMenu.group = group;
-                    projectMenu.popup(item, x, y);
+
+                LogView {
+                    id: logView
+                    visible: full.logsMode !== "closed"
+                    maximized: full.logsMode === "max"
+                    QQC2.SplitView.fillWidth: full.logsMode === "max"
+                    // Shrinks in a popup the user made narrow, so the table keeps its 16 grid units.
+                    QQC2.SplitView.preferredWidth: Math.max(Kirigami.Units.gridUnit * 16,
+                        Math.min(Kirigami.Units.gridUnit * 24, parent.width - Kirigami.Units.gridUnit * 16))
+                    QQC2.SplitView.minimumWidth: Kirigami.Units.gridUnit * 16
+                    onCloseRequested: full.closeLogs()
+                    onMaximizeToggled: {
+                        full.logsMode = full.logsMode === "max" ? "side" : "max";
+                        if (full.logsMode === "side") table.focusList(); else logView.focusList();
+                    }
+                    onLeave: table.focusList()
                 }
             }
 
@@ -134,10 +170,16 @@ PlasmaExtras.Representation {
                 id: detailsView
                 onBack: full.showTable()
             }
+        }
 
-            LogView {
-                id: logView
-                onBack: full.showTable()
+        Timer {
+            id: followTimer
+            interval: 300
+            onTriggered: {
+                var r = table.currentRow;
+                if (full.logsMode === "closed" || !r || r.key === full.shownKey) return;
+                full.shownKey = r.key;
+                logView.open(r);
             }
         }
     }
@@ -193,21 +235,41 @@ PlasmaExtras.Representation {
         onAccepted: root.act("rm", targets)
     }
 
+    // Back from Details: the log panel, if open, stays as it was.
     function showTable() {
         pages.currentIndex = 0;
         detailsView.row = null;
-        logView.close();
         table.focusList();
     }
 
     function showLogs(row) {
-        pages.currentIndex = 2;
+        pages.currentIndex = 0;
+        // Already shown (e.g. Left then Right): keep loaded pages and scroll position.
+        if (logsMode !== "closed" && row.key && row.key === shownKey) {
+            logView.focusList();
+            return;
+        }
+        if (logsMode === "closed") logsMode = "side";
+        followTimer.stop();
+        shownKey = row.key || "";
         logView.open(row);
         logView.focusList();
     }
 
+    function closeLogs() {
+        if (logsMode === "closed") return;
+        followTimer.stop();
+        logsMode = "closed";
+        shownKey = "";
+        logView.close();
+        table.focusList();
+    }
+
     Connections {
         target: root
-        function onExpandedChanged() { if (root.expanded && pages.currentIndex === 0) table.focusList(); }
+        function onExpandedChanged() {
+            if (!root.expanded || pages.currentIndex !== 0) return;
+            if (full.logsMode === "max") logView.focusList(); else table.focusList();
+        }
     }
 }

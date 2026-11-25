@@ -39,8 +39,9 @@ Rectangle {
                 width: modelData.width * Kirigami.Units.gridUnit
                 height: rowItem.height
 
-                readonly property bool barCell: (modelData.id === "cpu" || modelData.id === "memory")
-                                                && rowItem.row.state === "running"
+                readonly property bool metricCell: (modelData.id === "cpu" || modelData.id === "memory")
+                                                   && rowItem.row.state === "running"
+                readonly property bool barCell: metricCell && !root.compactTable
                 readonly property var percent: modelData.id === "cpu" ? rowItem.row.cpu : Format.memPercent(rowItem.row)
 
                 PlasmaComponents.Label {
@@ -62,7 +63,7 @@ Rectangle {
                     visible: modelData.id !== "status"
                     anchors.fill: parent
                     anchors.leftMargin: cell.barCell ? cellBar.width + Kirigami.Units.smallSpacing * 2 : Kirigami.Units.smallSpacing
-                    color: cell.barCell ? rowItem.toneColor(Format.level(cell.percent)) : Kirigami.Theme.textColor
+                    color: cell.metricCell ? rowItem.toneColor(Format.level(cell.percent)) : Kirigami.Theme.textColor
                     anchors.rightMargin: Kirigami.Units.smallSpacing
                     verticalAlignment: Text.AlignVCenter
                     elide: Text.ElideRight

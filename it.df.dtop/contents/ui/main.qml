@@ -25,8 +25,8 @@ PlasmoidItem {
         { id: "image", title: "Image", width: 10 },
         { id: "ports", title: "Ports", width: 9 },
         { id: "pids", title: "PIDs", width: 3 },
-        { id: "cpu", title: "CPU", width: 8 },
-        { id: "memory", title: "Memory", width: 11 },
+        { id: "cpu", title: "CPU", width: 8, compactWidth: 4 },
+        { id: "memory", title: "Memory", width: 11, compactWidth: 6 },
         { id: "net_tx", title: "Net TX", width: 5 },
         { id: "net_rx", title: "Net RX", width: 5 },
         { id: "io_read", title: "Disk R", width: 5 },
@@ -34,7 +34,13 @@ PlasmoidItem {
         { id: "uptime", title: "Uptime", width: 7 },
         { id: "restarts", title: "Restarts", width: 4 }
     ]
-    readonly property var visibleColumns: allColumns.filter(function (c) { return cfg.columns.indexOf(c.id) >= 0; })
+    // True while the log panel sits beside the table: no bars, narrower metric columns.
+    property bool compactTable: false
+    readonly property var visibleColumns: allColumns
+        .filter(function (c) { return cfg.columns.indexOf(c.id) >= 0; })
+        .map(function (c) {
+            return compactTable && c.compactWidth ? Object.assign({}, c, { width: c.compactWidth }) : c;
+        })
 
     // ----- runtime state -----
     property var hostState: ({})        // { name: { status: "loading"|"ok"|"error", error, lastMs } }

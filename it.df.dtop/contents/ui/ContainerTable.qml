@@ -13,6 +13,8 @@ ColumnLayout {
     signal menuRequested(var row, Item item, real x, real y)
     signal logsRequested(var row)
     signal projectMenuRequested(var group, Item item, real x, real y)
+    signal closeLogsRequested()
+    property bool logsOpen: false   // Esc closes the log panel only while it is open, else it reaches the popup
 
     property string currentKey: ""
     property string anchorKey: ""
@@ -193,6 +195,10 @@ ColumnLayout {
                     break;
                 case Qt.Key_Right:
                     if (table.currentRow) table.logsRequested(table.currentRow);
+                    break;
+                case Qt.Key_Escape:
+                    if (!table.logsOpen) return;
+                    table.closeLogsRequested();
                     break;
                 default: return;
                 }

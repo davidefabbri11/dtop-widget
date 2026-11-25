@@ -145,10 +145,12 @@ SSH hosts must work non-interactively (key auth / agent); a host that hangs time
 - Table: CPU and Memory cells show a bar (memory against the container's limit, or the host's total when unlimited) with the same colours.
   Status symbols: ✓ healthy, ▶ running (amber while the healthcheck is starting), ✖ unhealthy or dead, ■ exited, ‖ paused, ↻ restarting, ○ created.
 - Mouse: click, Ctrl-click, Shift-click to select; right-click for the action menu; double-click for logs.
-- Keyboard: Up/Down or j/k, PageUp/PageDown, Home/End; Enter opens the action menu; Right arrow opens logs; Esc/Left goes back.
+- Keyboard: Up/Down or j/k, PageUp/PageDown, Home/End; Enter opens the action menu; Right arrow opens the log panel; in the panel Left returns to the table and Esc closes it; Esc leaves Details.
 - Action menu: Logs, Details (`docker inspect`), Start, Stop, Restart, Remove (with confirmation), Open shell (in the configured terminal), Open in Dozzle, Select compose project.
   Actions apply to the whole selection when the clicked row is part of it.
-- Logs: last N lines (Settings → Log lines per page), "Load older" pages backwards, Follow appends new lines, JSON toggle colourises JSON log lines.
+- Logs open in a panel beside the table (drag the divider to resize); while it is open the panel follows the current row, and the table drops its bars to make room.
+  Maximize hides the table; Close (or Esc) closes the panel.
+  Last N lines (Settings → Log lines per page), "Load older" pages backwards, Follow appends new lines, JSON toggle colourises JSON log lines.
 - Group (toolbar): groups the table by Compose project (`com.docker.compose.project`), one collapsible header per host and project; containers without a project go under "No compose project".
   Header: status (`running N/M` counts all of the project's containers), CPU/memory, and ▶ Start, ■ Stop, ⟳ Restart, ⋯ (or right-click) for the project menu: Start, Up (apply changes), Stop, Restart, Pause, Unpause, Pull images, Build, Recreate, Project logs, Select all containers, Down… (confirmation, optional `-v`).
   Up, Pull, Build and Recreate need the compose files: they use the file set (`working_dir` + `config_files` labels) shared by most of the project's containers, run over `ssh` on `ssh://` hosts, and are disabled on `tcp://`/`tls://` hosts.
