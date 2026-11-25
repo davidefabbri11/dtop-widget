@@ -58,6 +58,7 @@ PlasmoidItem {
     property var systemStats: ({})      // { hostName: { status: "ok"|"error", error, sample } }; absent = no System row
     property var inFlightSys: ({})      // { hostName: true }
     property var inFlightInfo: ({})     // { hostName: true }
+    property var infoRetryAt: ({})      // { hostName: ms } after a failed docker info
 
     readonly property var visibleRows: Model.sortRows(
         Model.filterRows(rows, { showAll: cfg.showAll, search: searchText }), cfg.sortKey, cfg.sortDesc)
@@ -117,7 +118,8 @@ PlasmoidItem {
         var epoch = configEpoch;
         var withStats = root.expanded;
         var timeoutSec = refreshSeconds * 5;
-        if (withStats) pollSystem(h, timeoutSec);
+        // The System row is only shown in the stats header: no ssh /proc reads while it is off.
+        if (withStats && cfg.statsHeader) pollSystem(h, timeoutSec);
         run(Cmd.pollCommand(h, timeoutSec, withStats), function (out, err, code) {
             if (epoch !== configEpoch) return;
             inFlight[h.name] = false;
@@ -147,8 +149,12 @@ PlasmoidItem {
             inFlightSys[h.name] = false;
             var prev = systemStats[h.name] ? systemStats[h.name].sample : null;
             var entry;
-            if (code === 0) {
-                entry = { status: "ok", error: "", sample: Sys.systemSample(prev, Sys.parseProc(out), Date.now()) };
+            var proc = code === 0 ? Sys.parseProc(out) : null;
+            if (proc && proc.cpuTotal === null && proc.memTotal === null) {
+                // Exit 0 but no /proc data (restricted shell, login banner instead of output).
+                entry = { status: "error", error: "unexpected /proc output: " + (out.trim().split("\n")[0] || "empty"), sample: prev };
+            } else if (proc) {
+                entry = { status: "ok", error: "", sample: Sys.systemSample(prev, proc, Date.now()) };
             } else {
                 var error = code === 127 && h.endpoint.indexOf("ssh://") === 0
                     ? "ssh not found: install an OpenSSH client"
@@ -162,13 +168,14 @@ PlasmoidItem {
     }
 
     function fetchDockerInfo(h, epoch, timeoutSec) {
-        if (inFlightInfo[h.name]) return;
+        if (inFlightInfo[h.name] || Date.now() < (infoRetryAt[h.name] || 0)) return;
         inFlightInfo[h.name] = true;
-        run(Cmd.dockerInfoCommand(h, timeoutSec), function (out) {
+        run(Cmd.dockerInfoCommand(h, timeoutSec), function (out, err, code) {
             if (epoch !== configEpoch) return;
             inFlightInfo[h.name] = false;
-            var info = Cmd.parseDockerInfo(out);
-            if (!info) return;
+            var info = code === 0 ? Cmd.parseDockerInfo(out) : null;
+            // Failed: try again in a minute, not on every poll.
+            if (!info) { infoRetryAt[h.name] = Date.now() + 60000; return; }
             var all = Object.assign({}, dockerInfo);
             all[h.name] = info;
             dockerInfo = all;
@@ -191,6 +198,7 @@ PlasmoidItem {
         inFlight = ({});
         inFlightSys = ({});
         inFlightInfo = ({});
+        infoRetryAt = ({});
         dockerInfo = ({});
         systemStats = ({});
         var names = hosts.map(function (h) { return h.name; });

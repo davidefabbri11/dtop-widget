@@ -179,7 +179,9 @@ function composeCommand(host, action, project, fileSet) {
 
 var PROC_FILES = "/proc/stat /proc/meminfo /proc/loadavg /proc/uptime /proc/net/dev";
 // One master connection per host, reused by every poll for 60 s after the last one.
-var SSH_POOL_OPTS = "-o BatchMode=yes -o ControlMaster=auto -o ControlPath=\"$XDG_RUNTIME_DIR/dtop-ssh-%C\" -o ControlPersist=60";
+// Keepalives retire a master whose connection died (suspend, network switch) instead of hanging on it.
+var SSH_POOL_OPTS = "-o ServerAliveInterval=5 -o ServerAliveCountMax=2"
+    + " -o ControlMaster=auto -o ControlPath=\"$XDG_RUNTIME_DIR/dtop-ssh-%C\" -o ControlPersist=60";
 
 // Machine stats need a shell on the Docker host: null for tcp://, tls:// and unix:// endpoints.
 function systemStatsCommand(host, timeoutSec) {
@@ -187,7 +189,7 @@ function systemStatsCommand(host, timeoutSec) {
     if (host.endpoint === "local") return base + "cat " + PROC_FILES;
     if (host.endpoint.indexOf("ssh://") !== 0) return null;
     var t = sshTarget(host.endpoint);
-    return base + "env SSH_ASKPASS_REQUIRE=never ssh " + SSH_POOL_OPTS + " "
+    return base + "env SSH_ASKPASS_REQUIRE=never ssh -o BatchMode=yes -o ConnectTimeout=" + timeoutSec + " " + SSH_POOL_OPTS + " "
         + (t.port ? "-p " + shQuote(t.port) + " " : "") + shQuote(t.dest) + " cat " + PROC_FILES;
 }
 
@@ -197,7 +199,9 @@ function dockerInfoCommand(host, timeoutSec) {
 
 function parseDockerInfo(stdout) {
     var m = /^\s*(\d+)\s+(\d+)\s*$/.exec(String(stdout || ""));
-    return m ? { cores: parseInt(m[1], 10), memTotal: parseInt(m[2], 10) } : null;
+    // An unreachable daemon still prints "0 0" (and exits 1).
+    var info = m ? { cores: parseInt(m[1], 10), memTotal: parseInt(m[2], 10) } : null;
+    return info && info.cores > 0 && info.memTotal > 0 ? info : null;
 }
 
 // Error text for a failed compose command. Without the Compose plugin, docker parses `compose -p`

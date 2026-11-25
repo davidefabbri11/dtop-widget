@@ -287,7 +287,8 @@ test("systemStatsCommand reads /proc locally under timeout", () => {
 test("systemStatsCommand reads /proc over a pooled, non-interactive ssh connection", () => {
     const cmds = [host("ssh://me@prod"), host("ssh://prod:2222")].map((h) => C.systemStatsCommand(h, 15));
 
-    const opts = "-o BatchMode=yes -o ControlMaster=auto -o ControlPath=\"$XDG_RUNTIME_DIR/dtop-ssh-%C\" -o ControlPersist=60";
+    const opts = "-o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=5 -o ServerAliveCountMax=2"
+        + " -o ControlMaster=auto -o ControlPath=\"$XDG_RUNTIME_DIR/dtop-ssh-%C\" -o ControlPersist=60";
     assert.deepEqual(cmds, [
         "timeout 15 env SSH_ASKPASS_REQUIRE=never ssh " + opts + " 'me@prod' cat " + C.PROC_FILES,
         "timeout 15 env SSH_ASKPASS_REQUIRE=never ssh " + opts + " -p '2222' 'prod' cat " + C.PROC_FILES,
@@ -306,8 +307,8 @@ test("dockerInfoCommand asks for cores and total memory under timeout", () => {
     assert.equal(cmd, "timeout 15 docker info --format '{{.NCPU}} {{.MemTotal}}'");
 });
 
-test("parseDockerInfo reads cores and bytes, null on garbage", () => {
-    const results = [C.parseDockerInfo("10 34359738368\n"), C.parseDockerInfo("error\n")];
+test("parseDockerInfo reads cores and bytes, null on garbage or the 0 0 an unreachable daemon prints", () => {
+    const results = [C.parseDockerInfo("10 34359738368\n"), C.parseDockerInfo("error\n"), C.parseDockerInfo("0 0\n")];
 
-    assert.deepEqual(results, [{ cores: 10, memTotal: 34359738368 }, null]);
+    assert.deepEqual(results, [{ cores: 10, memTotal: 34359738368 }, null, null]);
 });

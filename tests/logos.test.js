@@ -39,3 +39,11 @@ test("every logo slug has a bundled image", () => {
 
     assert.deepEqual(missing, []);
 });
+
+test("logoForImage strips known suffixes like -alpine, -server and -nightly", () => {
+    const images = ["x/nginx-alpine", "foo/vaultwarden-server", "jellyfin/jellyfin-nightly", "x/a-server"];
+
+    const slugs = images.map((i) => L.logoForImage(i, false, D));
+
+    assert.deepEqual(slugs, ["nginx", "vaultwarden-light", "jellyfin", null]);
+});

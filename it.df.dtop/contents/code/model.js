@@ -64,7 +64,8 @@ var SORT_VALUE = {
     net_rx: function (r) { return nullable(r.netRxRate); },
     io_read: function (r) { return nullable(r.readRate); },
     io_write: function (r) { return nullable(r.writeRate); },
-    uptime: function (r) { return nullable(r.upSec); },     // ascending = most recently started first
+    // ascending = most recently started first, containers that are not up last
+    uptime: function (r) { return r.upSec === null || r.upSec === undefined ? Infinity : r.upSec; },
     created: function (r) { return -r.createdMs; },         // ascending = newest first
     restarts: function (r) { return r.restarts; }
 };

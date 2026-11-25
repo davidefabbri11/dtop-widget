@@ -40,16 +40,16 @@ function span(color, html) {
 // Escaped `s` with every case-insensitive occurrence of `needle` highlighted.
 function highlight(s, needle, current) {
     if (!needle) return escapeHtml(s);
-    var lower = s.toLowerCase();
-    var n = needle.toLowerCase();
+    // A case-insensitive regex keeps indices in `s` (toLowerCase can change the length, e.g. "İ").
+    var re = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
     var out = "";
     var from = 0;
-    var i;
-    while ((i = lower.indexOf(n, from)) >= 0) {
-        out += escapeHtml(s.substring(from, i))
+    var m;
+    while ((m = re.exec(s)) !== null) {
+        out += escapeHtml(s.substring(from, m.index))
             + "<span style=\"background-color:" + (current ? COLOR.current : COLOR.match) + ";color:" + COLOR.matchText + "\">"
-            + escapeHtml(s.substring(i, i + n.length)) + "</span>";
-        from = i + n.length;
+            + escapeHtml(m[0]) + "</span>";
+        from = m.index + m[0].length;
     }
     return out + escapeHtml(s.substring(from));
 }
@@ -82,7 +82,7 @@ function matchLines(lines, needle) {
 }
 
 // pretty=true renders indented multi-line rich text (details view); otherwise one line.
-// `mark` = { needle, current } links URLs and highlights matches inside string values.
+// `mark` = { needle, current } highlights matches in keys and values and links URLs inside string values.
 function renderJson(value, pretty, depth, mark) {
     depth = depth || 0;
     var nl = pretty ? "<br>" : "";

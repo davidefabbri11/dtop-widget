@@ -251,3 +251,14 @@ test("displayedRows excludes rows of collapsed groups", () => {
 
     assert.deepEqual(shown.map((r) => r.name), ["x"]);
 });
+
+test("sortRows by uptime puts stopped containers after running ones when ascending", () => {
+    const rows = [ps({ id: "1", name: "run", upSec: 60 }), ps({ id: "2", name: "stopped", state: "exited", upSec: null }),
+        ps({ id: "3", name: "old", upSec: 9000 })];
+
+    const asc = M.sortRows(rows, "uptime", false).map(r => r.name);
+    const desc = M.sortRows(rows, "uptime", true).map(r => r.name);
+
+    assert.deepEqual(asc, ["run", "old", "stopped"]);
+    assert.deepEqual(desc, ["stopped", "old", "run"]);
+});
