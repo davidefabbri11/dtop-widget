@@ -18,8 +18,9 @@ test("formatPercent keeps one decimal", () => {
     assert.equal(F.formatPercent(113.456), "113.5%");
 });
 
-test("formatUptime strips the Up prefix for running containers only", () => {
-    assert.equal(F.formatUptime({ state: "running", status: "Up 2 hours (healthy)" }), "2 hours (healthy)");
+test("formatUptime strips the Up prefix and the health suffix, for running containers only", () => {
+    assert.equal(F.formatUptime({ state: "running", status: "Up 2 hours (healthy)" }), "2 hours");
+    assert.equal(F.formatUptime({ state: "running", status: "Up About an hour" }), "About an hour");
     assert.equal(F.formatUptime({ state: "exited", status: "Exited (0) 3 minutes ago" }), "");
 });
 
@@ -100,4 +101,10 @@ test("memPercent is usage over limit, null without a limit", () => {
     const values = [F.memPercent({ memUsed: 1536, memLimit: 2048 }), F.memPercent({ memUsed: 1536, memLimit: 0 })];
 
     assert.deepEqual(values, [75, null]);
+});
+
+test("created cell shows docker's RunningFor text", () => {
+    const cell = F.formatCell({ state: "exited", createdText: "3 weeks ago" }, "created");
+
+    assert.equal(cell, "3 weeks ago");
 });

@@ -20,7 +20,7 @@ function formatPercent(n) {
 
 function formatUptime(row) {
     if (row.state !== "running") return "";
-    return String(row.status || "").replace(/^Up\s+/, "");
+    return String(row.status || "").replace(/^Up\s+/, "").replace(/\s*\(.*\)$/, "");
 }
 
 // Colour band of a usage percentage, shared by the header bars and the table.
@@ -93,6 +93,7 @@ function formatCell(row, colId) {
     case "io_read": return formatRate(row.readRate);
     case "io_write": return formatRate(row.writeRate);
     case "uptime": return formatUptime(row);
+    case "created": return row.createdText;
     case "restarts": return String(row.restarts);
     default: return "";
     }

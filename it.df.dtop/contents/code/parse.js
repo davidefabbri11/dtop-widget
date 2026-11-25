@@ -67,6 +67,20 @@ function healthOf(obj) {
     return m[1] === "health: starting" ? "starting" : m[1];
 }
 
+var UP_UNITS = { second: 1, minute: 60, hour: 3600, day: 86400, week: 604800, month: 2592000, year: 31536000 };
+
+// Seconds since start from docker's humanised Status ("Up 6 days (healthy)"); null unless up.
+function parseUpSeconds(status) {
+    var m = /^Up (.*?)(?: \(.*\))?$/.exec(status || "");
+    if (!m) return null;
+    var t = m[1];
+    if (t === "Less than a second") return 0;
+    var about = /^About an? (\w+)$/.exec(t);
+    if (about) return UP_UNITS[about[1]] || null;
+    var n = /^(\d+) (\w+?)s?$/.exec(t);
+    return n && UP_UNITS[n[2]] ? parseInt(n[1], 10) * UP_UNITS[n[2]] : null;
+}
+
 function parsePs(stdout, hostName) {
     return jsonLines(stdout).map(function (o) {
         var labels = parseLabels(o.Labels);
@@ -90,6 +104,8 @@ function parsePs(stdout, hostName) {
             status: o.Status || "",
             health: healthOf(o),
             createdMs: parseCreatedAt(o.CreatedAt),
+            createdText: o.RunningFor || "",
+            upSec: parseUpSeconds(o.Status),
             labels: labels
         };
     });
@@ -115,6 +131,7 @@ function parseStats(stdout) {
 
 if (typeof module !== "undefined" && module.exports) {
     module.exports = {
+        parseUpSeconds: parseUpSeconds,
         parseLabels: parseLabels,
         parseSize: parseSize,
         parsePair: parsePair,

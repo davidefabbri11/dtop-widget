@@ -123,3 +123,20 @@ test("parsePs gives empty compose fields to non-compose containers", () => {
     assert.equal(row.composeProject, "");
     assert.deepEqual(row.composeConfigFiles, []);
 });
+
+test("parseUpSeconds turns docker's humanised Up time into seconds, null when not up", () => {
+    const statuses = ["Up Less than a second", "Up 1 second", "Up 45 seconds (health: starting)", "Up About a minute",
+        "Up 5 minutes", "Up About an hour (healthy)", "Up 4 hours", "Up 6 days (Paused)", "Up 2 weeks", "Up 3 months",
+        "Up 2 years", "Exited (0) 3 minutes ago", "Created", ""];
+
+    const secs = statuses.map(P.parseUpSeconds);
+
+    assert.deepEqual(secs, [0, 1, 45, 60, 300, 3600, 14400, 518400, 1209600, 7776000, 63072000, null, null, null]);
+});
+
+test("parsePs exposes uptime seconds and docker's RunningFor text", () => {
+    const rows = P.parsePs("{\"ID\":\"abc\",\"Status\":\"Up 4 hours\",\"State\":\"running\",\"RunningFor\":\"3 weeks ago\"}\n", "local");
+
+    assert.equal(rows[0].upSec, 14400);
+    assert.equal(rows[0].createdText, "3 weeks ago");
+});

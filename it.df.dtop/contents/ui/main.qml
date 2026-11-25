@@ -32,6 +32,7 @@ PlasmoidItem {
         { id: "io_read", title: "Disk R", width: 5 },
         { id: "io_write", title: "Disk W", width: 5 },
         { id: "uptime", title: "Uptime", width: 7 },
+        { id: "created", title: "Created", width: 7 },
         { id: "restarts", title: "Restarts", width: 4 }
     ]
     // True while the log panel sits beside the table: no bars, narrower metric columns.

@@ -77,10 +77,18 @@ test("sortRows by cpu descending puts the highest first and returns a new array"
     assert.notEqual(sorted, rows);
 });
 
-test("sortRows by uptime ascending puts the newest container first", () => {
-    const rows = [ps({ id: "1", name: "old", createdMs: 1000 }), ps({ id: "2", name: "new", createdMs: 5000 })];
+test("sortRows by uptime ascending puts the most recently started container first", () => {
+    const rows = [ps({ id: "1", name: "long", createdMs: 5000, upSec: 9000 }), ps({ id: "2", name: "restarted", createdMs: 1000, upSec: 60 })];
 
     const names = M.sortRows(rows, "uptime", false).map(r => r.name);
+
+    assert.deepEqual(names, ["restarted", "long"]);
+});
+
+test("sortRows by created ascending puts the newest container first", () => {
+    const rows = [ps({ id: "1", name: "old", createdMs: 1000 }), ps({ id: "2", name: "new", createdMs: 5000 })];
+
+    const names = M.sortRows(rows, "created", false).map(r => r.name);
 
     assert.deepEqual(names, ["new", "old"]);
 });
