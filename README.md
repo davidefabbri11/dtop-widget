@@ -143,7 +143,7 @@ SSH hosts must work non-interactively (key auth / agent); a host that hangs time
   - **Docker**: the containers' total CPU "of N cores", memory used out of Docker's total (from `docker info`), and `running N/M`.
   - Bars and values turn amber from 50 % and red from 80 %.
 - Table: CPU and Memory cells show a bar (memory against the container's limit, or the host's total when unlimited) with the same colours.
-  Status symbols: ✓ healthy, ▶ running (amber while the healthcheck is starting), ✖ unhealthy or dead, ■ exited, ‖ paused, ↻ restarting, ○ created.
+  Status symbols: ✓ healthy, ▶ running (amber while the healthcheck is starting), ✗ unhealthy or dead, ■ exited, ‖ paused, ↻ restarting, ○ created.
 - App logos: the Logo column (on by default for new or never-customised column lists; otherwise enable it in the Columns menu) shows the app's logo when the image is recognised (e.g. `postgres`, `lscr.io/linuxserver/sonarr`), using dtop's bundled logo set and matching rules.
 - Mouse: click, Ctrl-click, Shift-click to select; right-click for the action menu; double-click for logs.
 - Keyboard: Up/Down or j/k, PageUp/PageDown, Home/End; Enter opens the action menu; Right arrow opens the log panel; in the panel Left returns to the table and Esc closes it (when maximized, both restore the side layout); Esc in the table also closes an open panel; Esc leaves Details.

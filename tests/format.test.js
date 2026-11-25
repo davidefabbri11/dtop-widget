@@ -82,7 +82,7 @@ test("statusIcon maps state and health to a dtop symbol and tone", () => {
     const icons = rows.map(F.statusIcon);
 
     assert.deepEqual(icons, [
-        { glyph: "✖", tone: "high" }, { glyph: "✖", tone: "high" }, { glyph: "↻", tone: "warn" },
+        { glyph: "✗", tone: "high" }, { glyph: "✗", tone: "high" }, { glyph: "↻", tone: "warn" },
         { glyph: "■", tone: "high" }, { glyph: "■", tone: "high" },
         { glyph: "‖", tone: "warn" }, { glyph: "○", tone: "off" }, { glyph: "✓", tone: "ok" },
         { glyph: "▶", tone: "warn" }, { glyph: "▶", tone: "ok" },

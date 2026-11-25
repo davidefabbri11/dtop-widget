@@ -59,7 +59,8 @@ function formatLoad(load) {
 
 // dtop's status symbol; tone picks the colour (ok / warn / high / off). First match wins.
 function statusIcon(row) {
-    if (row.health === "unhealthy" || row.state === "dead") return { glyph: "✖", tone: "high" };
+    // ✗ (not dtop's ✖): common fonts lack ✖, and the emoji fallback draws it grey, ignoring the colour.
+    if (row.health === "unhealthy" || row.state === "dead") return { glyph: "✗", tone: "high" };
     if (row.state === "restarting") return { glyph: "↻", tone: "warn" };
     if (row.state === "exited") return { glyph: "■", tone: "high" };
     if (row.state === "paused") return { glyph: "‖", tone: "warn" };
